@@ -1,12 +1,14 @@
 package dev.zyvera.rareitemshunter.lang;
 
 import dev.zyvera.rareitemshunter.RareItemsHunter;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class LangManager {
 
@@ -33,4 +35,23 @@ public class LangManager {
         }
     }
 
+    public String get(String key) {
+        return color(lang.getString(key, "&cMissing: " + key));
+    }
+
+    public String get(String key, Map<String, String> placeholders) {
+        String raw = lang.getString(key, "&cMissing: " + key);
+        for (Map.Entry<String, String> e : placeholders.entrySet()) {
+            raw = raw.replace("{" + e.getKey() + "}", e.getValue());
+        }
+        return color(raw);
+    }
+
+    public String prefix() {
+        return get("prefix");
+    }
+
+    private static String color(String s) {
+        return ChatColor.translateAlternateColorCodes('&', s);
+    }
 }
