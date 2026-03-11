@@ -78,7 +78,7 @@ Pull requests are welcome! Please open an issue first to discuss larger changes.
 
 ## 📜 License
 
-MIT — see [LICENSE](LICENSE)
+AGPL-3.0 — see [LICENSE](LICENSE)
 
 ---
 
