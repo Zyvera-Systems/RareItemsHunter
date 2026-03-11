@@ -22,7 +22,7 @@ public class RareItemManager {
                     "Alle 12 Rahmen natuerlich befuellt", true },
 
             { "dragon_egg", Material.DRAGON_EGG,
-                    "&5&lDrachene", 3, "1x pro Welt",
+                    "&5&lDrachen", 3, "1x pro Welt",
                     "Nur nach erstem Enderdrachen-Sieg", false },
 
             { "baby_pink_sheep", Material.PINK_DYE,
@@ -38,7 +38,7 @@ public class RareItemManager {
                     "Drop bei Ertrunkenen", false },
 
             { "wither_skeleton_skull", Material.WITHER_SKELETON_SKULL,
-                    "&0&lWither-Skelett-Schadel", 7, "~2.5 %",
+                    "&0&lWither-Skelett-Schaedel", 7, "~2.5 %",
                     "Benoetigt 3 Stueck fuer Wither-Beschwoerung", false },
 
             { "music_disc_creator_music_box", Material.MUSIC_DISC_CREATOR_MUSIC_BOX,
@@ -102,7 +102,7 @@ public class RareItemManager {
                     "Nur in Pruefungskammern", false },
 
             { "ancient_debris", Material.ANCIENT_DEBRIS,
-                    "&8&lUralter Schutt", 23, "~1.7 pro Chunk",
+                    "&8&lAntiker Schrott", 23, "~1.7 pro Chunk",
                     "Nether y=15 optimal", false },
 
             { "nether_star", Material.NETHER_STAR,
