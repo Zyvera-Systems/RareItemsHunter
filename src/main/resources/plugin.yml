@@ -1,0 +1,21 @@
+name: RareItemsHunter
+version: '1.1.0'
+main: dev.zyvera.rareitemshunter.RareItemsHunter
+api-version: '1.21'
+description: Track and collect rare Minecraft items.
+authors: [ Zyvera-Systems, Thomas U. ]
+
+commands:
+  ri:
+    description: RareItemsHunter main command.
+    usage: /ri [help|reset <player>|reload|give <player> <id>]
+    aliases: [ rih, rareitems ]
+    permission: rih.use
+
+permissions:
+  rih.use:
+    description: Open the rare items GUI.
+    default: true
+  rih.admin:
+    description: Admin commands (reset, reload, give).
+    default: op
