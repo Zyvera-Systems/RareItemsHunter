@@ -1,5 +1,40 @@
 # RareItemsHunter – Deutsch
 prefix: "&8[&6RIH&8] "
-gui:
-messages:
 
+gui:
+  pane-found:    "&a&l✔ {name}"
+  pane-unfound:  "&8{name}"
+  pane-click-hint: "&8» Klicken zum Bestaetigen «"
+  pane-found-label: "&a&l✔ GEFUNDEN"
+  pane-occurred-label: "&a&l✔ ERLEBT"
+  rank:          "&7Rang &6{rank}&8/&6{total}"
+  progress-done: "&a&lFortschritt: &f{pct}"
+  progress-found: "&7{found} &8/ &7{total} gefunden"
+  progress-empty: "&7{pct} &8({found}&8/&7{total}&8)"
+  nav-prev:      "&e&l◀ Vorherige Seite &8({page})"
+  nav-next:      "&e&l▶ Naechste Seite &8({page})"
+
+messages:
+  already-found:    "{prefix}&7{item} &7wurde bereits bestaetigt."
+  marked-found:     "{prefix}&aGlueckwunsch! &6{item} &amarkiert! &8(Rang &e{rank}&8/&e{total}&8) &8| &7{time}"
+  announce-all:     "&6&l[RIH] &e{player} &7hat &6&lALLE {total} Items &7gefunden! &8| &7{time}"
+  complete-title:   "&6&l100% Komplett!"
+  complete-subtitle: "&7Alle &6{total} &7Items gesammelt!"
+  no-permission:    "{prefix}&cKeine Berechtigung."
+  player-only:      "{prefix}&cNur fuer Spieler verfuegbar."
+  reset-online:     "{prefix}&aFortschritt von &e{player} &azurueckgesetzt."
+  reset-offline:    "{prefix}&aFortschritt von &e{player} &azurueckgesetzt (offline)."
+  reset-notify:     "{prefix}&eDein Fortschritt wurde zurueckgesetzt."
+  player-not-found: "{prefix}&cSpieler &f{player} &cnicht gefunden."
+  reloaded:         "{prefix}&aKonfiguration neu geladen. &e{count} Items geladen."
+  give-already:     "{prefix}&e{player} &7hat &f{item} &7bereits."
+  give-done:        "{prefix}&aItem &f{item} &afuer &e{player} &amarkiert."
+  give-notify:      "{prefix}&aItem &f{item} &awurde dir von einem Admin gegeben."
+  give-unknown-id:  "{prefix}&cUnbekannte ID: &f{id}"
+  unknown-command:  "{prefix}&cUnbekannter Befehl. Nutze &f/ri help&c."
+  help-header:      "&8&m                              "
+  help-line1:       "  &6/ri &8– &fGUI oeffnen"
+  help-line2:       "  &6/ri reset &e<Spieler>"
+  help-line3:       "  &6/ri reload"
+  help-line4:       "  &6/ri give &e<Spieler> &b<ID>"
+  help-footer:      "&8Made by &6Zyvera-Systems &8& &6Thomas U."
