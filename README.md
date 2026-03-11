@@ -69,3 +69,19 @@ custom-items:
 **Language files** are in `plugins/RareItemsHunter/lang/de.yml` and `en.yml` — every message, GUI label, and format string is editable there.
 
 ---
+
+## 🤝 Contributing
+
+Pull requests are welcome! Please open an issue first to discuss larger changes.
+
+---
+
+## 📜 License
+
+MIT — see [LICENSE](LICENSE)
+
+---
+
+<div align="center">
+  Made with ❤️ by <strong>Zyvera-Systems</strong> & <strong>Thomas U.</strong>
+</div>
