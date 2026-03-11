@@ -1,0 +1,15 @@
+# -----------------------------------------
+#  RareItemsHunter  –  config.yml
+#  Authors: Zyvera-Systems & Thomas U.
+# -----------------------------------------
+
+# Firework power (0 = instant, 1 = normal, 2 = high)
+firework-power: 1
+
+# GUI title (supports & color codes)
+gui-title: "&8» &6&lSeltene Items &8«"
+
+# Global chat announcement when a player finds an item
+# Placeholders: {player}, {item}, {rank}, {total}
+announce-find: true
+
