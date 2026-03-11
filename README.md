@@ -38,3 +38,34 @@
 | `/ri give <player> <id>` | Mark an item as found for a player | `rih.admin` |
 
 ---
+
+## ⚙️ Configuration
+
+**`config.yml`**
+```yaml
+# Language: de | en
+language: de
+
+# Firework power (0 = instant, 1 = normal, 2 = high)
+firework-power: 1
+
+# GUI title (supports & color codes)
+gui-title: "&8» &6&lSeltene Items &8«"
+
+# Global announce when a player collects ALL items
+announce-find: true
+
+# Add your own items here
+custom-items:
+  - id: "my_item"
+    material: "DIAMOND_BLOCK"
+    name: "&b&lDiamond Block"
+    chance: "0.01 %"
+    description: "Somehow found a full diamond block"
+    rarity: 50
+    occurrence-only: false
+```
+
+**Language files** are in `plugins/RareItemsHunter/lang/de.yml` and `en.yml` — every message, GUI label, and format string is editable there.
+
+---
