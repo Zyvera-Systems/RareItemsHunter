@@ -16,3 +16,23 @@ gui-title: "&8» &6&lSeltene Items &8«"
 # Placeholders: {player}, {item}, {rank}, {total}
 announce-find: true
 
+# ─────────────────────────────────────────
+#  Custom items (extends the built-in list)
+#  id:             unique key (no spaces)
+#  material:       Bukkit Material name
+#  name:           display name (&-color codes)
+#  chance:         short chance text  e.g. "0.5 %"
+#  description:    one-line description (italic lore)
+#  rarity:         integer rank (lower = rarer)
+#  occurrence-only: true = click to confirm event (no item needed)
+# ─────────────────────────────────────────
+custom-items: []
+# Example:
+# custom-items:
+#   - id: "my_item"
+#     material: "DIAMOND_BLOCK"
+#     name: "&b&lDiamond Block"
+#     chance: "0.01 %"
+#     description: "Somehow found a full diamond block"
+#     rarity: 50
+#     occurrence-only: false
