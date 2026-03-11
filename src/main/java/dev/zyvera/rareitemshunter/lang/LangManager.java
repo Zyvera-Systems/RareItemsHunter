@@ -1,0 +1,36 @@
+package dev.zyvera.rareitemshunter.lang;
+
+import dev.zyvera.rareitemshunter.RareItemsHunter;
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+public class LangManager {
+
+    private final RareItemsHunter plugin;
+    private YamlConfiguration lang;
+
+    public LangManager(RareItemsHunter plugin) {
+        this.plugin = plugin;
+    }
+
+    public void load() {
+        String language = plugin.getConfig().getString("language", "de");
+        String fileName = "lang/" + language + ".yml";
+        File file = new File(plugin.getDataFolder(), fileName);
+
+        plugin.saveResource(fileName, true);
+        lang = YamlConfiguration.loadConfiguration(file);
+
+        InputStream stream = plugin.getResource(fileName);
+        if (stream != null) {
+            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8));
+            lang.setDefaults(defaults);
+        }
+    }
+
+}
