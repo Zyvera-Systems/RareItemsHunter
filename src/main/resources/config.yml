@@ -1,7 +1,10 @@
-# -----------------------------------------
+# ─────────────────────────────────────────
 #  RareItemsHunter  –  config.yml
 #  Authors: Zyvera-Systems & Thomas U.
-# -----------------------------------------
+# ─────────────────────────────────────────
+
+# Language: de | en
+language: de
 
 # Firework power (0 = instant, 1 = normal, 2 = high)
 firework-power: 1
