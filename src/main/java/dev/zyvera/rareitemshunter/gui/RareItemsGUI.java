@@ -26,22 +26,22 @@ public class RareItemsGUI {
     public static final int ITEM_BOT_START = 18;
     public static final int PANE_BOT_START = 27;
     public static final int PROGRESS_START = 36;
-    public static final int NAV_START = 45;
-    public static final int SLOT_PREV = 45;
-    public static final int SLOT_NEXT = 53;
-    private static final int COLS = 9;
+    public static final int NAV_START      = 45;
+    public static final int SLOT_PREV      = 45;
+    public static final int SLOT_NEXT      = 53;
+    private static final int COLS          = 9;
 
-    private static final Material PANE_UNFOUND = Material.GRAY_STAINED_GLASS_PANE;
-    private static final Material PANE_FOUND = Material.LIME_STAINED_GLASS_PANE;
-    private static final Material PROGRESS_FILLED = Material.GREEN_STAINED_GLASS_PANE;
+    private static final Material PANE_UNFOUND      = Material.GRAY_STAINED_GLASS_PANE;
+    private static final Material PANE_FOUND        = Material.LIME_STAINED_GLASS_PANE;
+    private static final Material PROGRESS_FILLED   = Material.GREEN_STAINED_GLASS_PANE;
     private static final Material PROGRESS_COMPLETE = Material.ORANGE_STAINED_GLASS_PANE;
-    private static final Material PROGRESS_EMPTY = Material.LIGHT_GRAY_STAINED_GLASS_PANE;
-    private static final Material NAV_FILLER = Material.GRAY_STAINED_GLASS_PANE;
+    private static final Material PROGRESS_EMPTY    = Material.LIGHT_GRAY_STAINED_GLASS_PANE;
+    private static final Material NAV_FILLER        = Material.GRAY_STAINED_GLASS_PANE;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private final RareItemsHunter plugin;
-    private final Random rng = new Random();
+    private final Random          rng = new Random();
 
     public RareItemsGUI(RareItemsHunter plugin) {
         this.plugin = plugin;
@@ -49,16 +49,16 @@ public class RareItemsGUI {
 
     public void open(Player player, int page) {
         List<RareItem> all  = plugin.getRareItemManager().getItems();
-        int total  = all.size();
-        int maxPage = Math.max(0, (int) Math.ceil((double) total / ITEMS_PER_PAGE) - 1);
+        int total           = all.size();
+        int maxPage         = Math.max(0, (int) Math.ceil((double) total / ITEMS_PER_PAGE) - 1);
         page = Math.max(0, Math.min(page, maxPage));
 
         plugin.lockNavigation(player.getUniqueId());
         plugin.setGuiPage(player.getUniqueId(), page);
 
         String rawTitle = plugin.getConfig().getString("gui-title", "&8\u00bb &6&lSeltene Items &8\u00ab");
-        String title = color(rawTitle) + ChatColor.GRAY + " [" + (page + 1) + "/" + (maxPage + 1) + "]";
-        Inventory inv = Bukkit.createInventory(null, 54, c(title));
+        String title    = color(rawTitle) + ChatColor.GRAY + " [" + (page + 1) + "/" + (maxPage + 1) + "]";
+        Inventory inv   = Bukkit.createInventory(null, 54, c(title));
 
         Set<String> found = plugin.getPlayerDataManager().getFoundItems(player);
         boolean full      = total > 0 && found.size() >= total;
@@ -70,11 +70,11 @@ public class RareItemsGUI {
                     PANE_BOT_START + col, ITEM_BOT_START + col);
         }
 
-        int foundCount = found.size();
-        double pct = total == 0 ? 0 : (double) foundCount / total;
-        int filled = (int) Math.round(pct * COLS);
-        String pctStr = String.format("%.1f%%", pct * 100);
-        Material barMat = full ? PROGRESS_COMPLETE : PROGRESS_FILLED;
+        int    foundCount = found.size();
+        double pct        = total == 0 ? 0 : (double) foundCount / total;
+        int    filled     = (int) Math.round(pct * COLS);
+        String pctStr     = String.format("%.1f%%", pct * 100);
+        Material barMat   = full ? PROGRESS_COMPLETE : PROGRESS_FILLED;
 
         for (int i = 0; i < COLS; i++) {
             if (i < filled) {
@@ -112,22 +112,22 @@ public class RareItemsGUI {
     }
 
     public void grantReward(Player player, RareItem item, int total) {
-        int foundCount = plugin.getPlayerDataManager().countFound(player);
-        boolean allFound = foundCount >= total;
-        String timestamp = LocalDateTime.now().format(TIME_FMT);
+        int     foundCount = plugin.getPlayerDataManager().countFound(player);
+        boolean allFound   = foundCount >= total;
+        String  timestamp  = LocalDateTime.now().format(TIME_FMT);
 
         player.sendMessage(c(plugin.getLang().get("messages.marked-found", Map.of(
                 "prefix", plugin.getLang().prefix(),
-                "item", item.displayName(),
-                "rank", String.valueOf(item.rarity()),
-                "total", String.valueOf(total),
-                "time", timestamp))));
+                "item",   item.displayName(),
+                "rank",   String.valueOf(item.rarity()),
+                "total",  String.valueOf(total),
+                "time",   timestamp))));
 
         if (allFound) {
             String announce = plugin.getLang().get("messages.announce-all", Map.of(
                     "player", player.getName(),
-                    "total", String.valueOf(total),
-                    "time", timestamp));
+                    "total",  String.valueOf(total),
+                    "time",   timestamp));
             Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(c(announce)));
 
             player.showTitle(net.kyori.adventure.title.Title.title(
@@ -142,7 +142,7 @@ public class RareItemsGUI {
             player.showTitle(net.kyori.adventure.title.Title.title(
                     c(item.displayName()),
                     c(plugin.getLang().get("gui.rank", Map.of(
-                            "rank", String.valueOf(item.rarity()),
+                            "rank",  String.valueOf(item.rarity()),
                             "total", String.valueOf(total)))),
                     net.kyori.adventure.title.Title.Times.times(
                             Duration.ofMillis(400), Duration.ofMillis(3000), Duration.ofMillis(800))));
@@ -154,8 +154,8 @@ public class RareItemsGUI {
 
     private ItemStack buildPane(RareItem ri, boolean found, int total) {
         ItemStack pane = new ItemStack(found ? PANE_FOUND : PANE_UNFOUND);
-        ItemMeta meta = pane.getItemMeta();
-        String name = ChatColor.stripColor(color(ri.displayName()));
+        ItemMeta  meta = pane.getItemMeta();
+        String    name = ChatColor.stripColor(color(ri.displayName()));
 
         meta.displayName(c(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound",
                 Map.of("name", name))));
@@ -173,8 +173,8 @@ public class RareItemsGUI {
 
     private ItemStack buildItem(RareItem ri, boolean found, Player player) {
         ItemStack stack = new ItemStack(ri.material());
-        ItemMeta meta = stack.getItemMeta();
-        String name = ChatColor.stripColor(color(ri.displayName()));
+        ItemMeta  meta  = stack.getItemMeta();
+        String    name  = ChatColor.stripColor(color(ri.displayName()));
 
         if (found) {
             String ts = plugin.getPlayerDataManager().getFoundTimestamp(player, ri.id());
@@ -215,7 +215,7 @@ public class RareItemsGUI {
 
     private ItemStack filler() {
         ItemStack s = new ItemStack(NAV_FILLER);
-        ItemMeta m = s.getItemMeta();
+        ItemMeta  m = s.getItemMeta();
         m.displayName(c(" "));
         m.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         s.setItemMeta(m);
@@ -224,7 +224,7 @@ public class RareItemsGUI {
 
     private ItemStack progressPane(String title, String subtitle, Material mat) {
         ItemStack s = new ItemStack(mat);
-        ItemMeta m = s.getItemMeta();
+        ItemMeta  m = s.getItemMeta();
         m.displayName(c(title));
         if (subtitle != null) m.lore(List.of(c(subtitle)));
         m.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
@@ -234,7 +234,7 @@ public class RareItemsGUI {
 
     private ItemStack arrow(boolean next, int page) {
         ItemStack a = new ItemStack(Material.ARROW);
-        ItemMeta m = a.getItemMeta();
+        ItemMeta  m = a.getItemMeta();
         m.displayName(c(plugin.getLang().get(next ? "gui.nav-next" : "gui.nav-prev",
                 Map.of("page", String.valueOf(next ? page + 2 : page)))));
         a.setItemMeta(m);
@@ -279,5 +279,5 @@ public class RareItemsGUI {
     }
 
     private static String color(String s) { return ChatColor.translateAlternateColorCodes('&', s); }
-    private static Component c(String s) { return LegacyComponentSerializer.legacySection().deserialize(color(s)); }
+    private static Component c(String s)  { return LegacyComponentSerializer.legacySection().deserialize(color(s)); }
 }

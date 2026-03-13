@@ -84,12 +84,11 @@ public class InventoryClickListener implements Listener {
         }
 
         plugin.getPlayerDataManager().markFound(player, ri.id());
-        plugin.getGui().grantReward(player, ri, total);
 
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline() && plugin.hasGuiOpen(player))
-                plugin.getGui().open(player, page);
-        }, 5L);
+        // Close the GUI first so the title and fireworks are fully visible
+        player.closeInventory();
+
+        plugin.getGui().grantReward(player, ri, total);
     }
 
     private net.kyori.adventure.text.Component c(String s) {
