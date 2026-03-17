@@ -2,9 +2,11 @@ package dev.zyvera.rareitemshunter.gui;
 
 import dev.zyvera.rareitemshunter.RareItemsHunter;
 import dev.zyvera.rareitemshunter.model.RareItem;
+import dev.zyvera.rareitemshunter.model.RareItemCategory;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.*;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -26,84 +28,111 @@ public class RareItemsGUI {
     public static final int ITEM_BOT_START = 18;
     public static final int PANE_BOT_START = 27;
     public static final int PROGRESS_START = 36;
-    public static final int NAV_START      = 45;
-    public static final int SLOT_PREV      = 45;
-    public static final int SLOT_NEXT      = 53;
-    private static final int COLS          = 9;
+    public static final int SLOT_PREV = 45;
+    public static final int SLOT_FILTER = 49;
+    public static final int SLOT_NEXT = 53;
+    private static final int COLS = 9;
 
-    private static final Material PANE_UNFOUND      = Material.GRAY_STAINED_GLASS_PANE;
-    private static final Material PANE_FOUND        = Material.LIME_STAINED_GLASS_PANE;
-    private static final Material PROGRESS_FILLED   = Material.GREEN_STAINED_GLASS_PANE;
+    private static final Material PANE_UNFOUND = Material.GRAY_STAINED_GLASS_PANE;
+    private static final Material PANE_FOUND = Material.LIME_STAINED_GLASS_PANE;
+    private static final Material PROGRESS_FILLED = Material.GREEN_STAINED_GLASS_PANE;
     private static final Material PROGRESS_COMPLETE = Material.ORANGE_STAINED_GLASS_PANE;
-    private static final Material PROGRESS_EMPTY    = Material.LIGHT_GRAY_STAINED_GLASS_PANE;
-    private static final Material NAV_FILLER        = Material.GRAY_STAINED_GLASS_PANE;
+    private static final Material PROGRESS_EMPTY = Material.LIGHT_GRAY_STAINED_GLASS_PANE;
+    private static final Material NAV_FILLER = Material.GRAY_STAINED_GLASS_PANE;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final RareItemCategory[] FILTER_ORDER = {
+            null,
+            RareItemCategory.ITEM,
+            RareItemCategory.MOB,
+            RareItemCategory.STRUCTURE,
+            RareItemCategory.CUSTOM
+    };
 
     private final RareItemsHunter plugin;
-    private final Random          rng = new Random();
+    private final Random rng = new Random();
 
     public RareItemsGUI(RareItemsHunter plugin) {
         this.plugin = plugin;
     }
 
     public void open(Player player, int page) {
-        List<RareItem> all  = plugin.getRareItemManager().getItems();
-        int total           = all.size();
-        int maxPage         = Math.max(0, (int) Math.ceil((double) total / ITEMS_PER_PAGE) - 1);
+        RareItemCategory filter = plugin.getGuiFilter(player.getUniqueId());
+        List<RareItem> visibleItems = plugin.getRareItemManager().getItems(filter);
+        int visibleTotal = visibleItems.size();
+        int globalTotal = plugin.getRareItemManager().count();
+        int maxPage = Math.max(0, (int) Math.ceil((double) visibleTotal / ITEMS_PER_PAGE) - 1);
         page = Math.max(0, Math.min(page, maxPage));
 
         plugin.lockNavigation(player.getUniqueId());
         plugin.setGuiPage(player.getUniqueId(), page);
 
-        String rawTitle = plugin.getConfig().getString("gui-title", "&8\u00bb &6&lSeltene Items &8\u00ab");
-        String title    = color(rawTitle) + ChatColor.GRAY + " [" + (page + 1) + "/" + (maxPage + 1) + "]";
-        Inventory inv   = Bukkit.createInventory(null, 54, c(title));
+        String rawTitle = plugin.getConfig().getString("gui-title", "&8» &6&lSeltene Items &8«");
+        String filterSuffix = filter == null
+                ? ""
+                : ChatColor.DARK_GRAY + " • " + color(plugin.getLang().get(filterKey(filter)));
+        String title = color(rawTitle) + filterSuffix + ChatColor.GRAY + " [" + (page + 1) + "/" + (maxPage + 1) + "]";
+        Inventory inv = Bukkit.createInventory(null, 54, c(title));
 
         Set<String> found = plugin.getPlayerDataManager().getFoundItems(player);
-        boolean full      = total > 0 && found.size() >= total;
+        int foundCount = (int) visibleItems.stream().filter(item -> found.contains(item.id())).count();
+        boolean full = visibleTotal > 0 && foundCount >= visibleTotal;
 
         for (int col = 0; col < COLS; col++) {
-            fillPair(inv, all, total, found, player, page * ITEMS_PER_PAGE + col,
-                    PANE_TOP_START + col, ITEM_TOP_START + col);
-            fillPair(inv, all, total, found, player, page * ITEMS_PER_PAGE + COLS + col,
-                    PANE_BOT_START + col, ITEM_BOT_START + col);
+            fillPair(inv, visibleItems, visibleTotal, found, player, page * ITEMS_PER_PAGE + col,
+                    PANE_TOP_START + col, ITEM_TOP_START + col, globalTotal);
+            fillPair(inv, visibleItems, visibleTotal, found, player, page * ITEMS_PER_PAGE + COLS + col,
+                    PANE_BOT_START + col, ITEM_BOT_START + col, globalTotal);
         }
 
-        int    foundCount = found.size();
-        double pct        = total == 0 ? 0 : (double) foundCount / total;
-        int    filled     = (int) Math.round(pct * COLS);
-        String pctStr     = String.format("%.1f%%", pct * 100);
-        Material barMat   = full ? PROGRESS_COMPLETE : PROGRESS_FILLED;
+        double pct = visibleTotal == 0 ? 0 : (double) foundCount / visibleTotal;
+        int filled = (int) Math.round(pct * COLS);
+        String pctStr = String.format(Locale.US, "%.1f%%", pct * 100);
+        Material barMat = full ? PROGRESS_COMPLETE : PROGRESS_FILLED;
 
         for (int i = 0; i < COLS; i++) {
             if (i < filled) {
                 inv.setItem(PROGRESS_START + i, progressPane(
                         plugin.getLang().get("gui.progress-done", Map.of("pct", pctStr)),
                         plugin.getLang().get("gui.progress-found", Map.of(
-                                "found", String.valueOf(foundCount), "total", String.valueOf(total))),
+                                "found", String.valueOf(foundCount),
+                                "total", String.valueOf(visibleTotal))),
                         barMat));
             } else {
                 inv.setItem(PROGRESS_START + i, progressPane(
                         plugin.getLang().get("gui.progress-empty", Map.of(
-                                "pct", pctStr, "found", String.valueOf(foundCount), "total", String.valueOf(total))),
+                                "pct", pctStr,
+                                "found", String.valueOf(foundCount),
+                                "total", String.valueOf(visibleTotal))),
                         null, PROGRESS_EMPTY));
             }
         }
 
-        inv.setItem(SLOT_PREV, page > 0       ? arrow(false, page) : filler());
-        for (int i = NAV_START + 1; i < SLOT_NEXT; i++) inv.setItem(i, filler());
-        inv.setItem(SLOT_NEXT, page < maxPage ? arrow(true, page)  : filler());
+        inv.setItem(SLOT_PREV, page > 0 ? arrow(false, page) : filler());
+        for (int i = 46; i < SLOT_NEXT; i++) {
+            inv.setItem(i, filler());
+        }
+        inv.setItem(SLOT_FILTER, filterButton(filter));
+        inv.setItem(SLOT_NEXT, page < maxPage ? arrow(true, page) : filler());
 
         player.openInventory(inv);
     }
 
+    public RareItemCategory nextFilter(RareItemCategory currentFilter) {
+        for (int i = 0; i < FILTER_ORDER.length; i++) {
+            if (FILTER_ORDER[i] == currentFilter) {
+                return FILTER_ORDER[(i + 1) % FILTER_ORDER.length];
+            }
+        }
+        return RareItemCategory.ITEM;
+    }
+
     private void fillPair(Inventory inv, List<RareItem> all, int total, Set<String> found,
-                           Player player, int listIdx, int paneSlot, int itemSlot) {
+                          Player player, int listIdx, int paneSlot, int itemSlot, int globalTotal) {
         if (listIdx < total) {
-            RareItem ri  = all.get(listIdx);
-            boolean  fnd = found.contains(ri.id());
-            inv.setItem(paneSlot, buildPane(ri, fnd, total));
+            RareItem ri = all.get(listIdx);
+            boolean fnd = found.contains(ri.id());
+            inv.setItem(paneSlot, buildPane(ri, fnd, globalTotal));
             inv.setItem(itemSlot, buildItem(ri, fnd, player));
         } else {
             inv.setItem(paneSlot, filler());
@@ -112,22 +141,22 @@ public class RareItemsGUI {
     }
 
     public void grantReward(Player player, RareItem item, int total) {
-        int     foundCount = plugin.getPlayerDataManager().countFound(player);
-        boolean allFound   = foundCount >= total;
-        String  timestamp  = LocalDateTime.now().format(TIME_FMT);
+        int foundCount = plugin.getPlayerDataManager().countFound(player);
+        boolean allFound = foundCount >= total;
+        String timestamp = LocalDateTime.now().format(TIME_FMT);
 
         player.sendMessage(c(plugin.getLang().get("messages.marked-found", Map.of(
                 "prefix", plugin.getLang().prefix(),
-                "item",   item.displayName(),
-                "rank",   String.valueOf(item.rarity()),
-                "total",  String.valueOf(total),
-                "time",   timestamp))));
+                "item", item.displayName(),
+                "rank", String.valueOf(item.rarity()),
+                "total", String.valueOf(total),
+                "time", timestamp))));
 
         if (allFound) {
             String announce = plugin.getLang().get("messages.announce-all", Map.of(
                     "player", player.getName(),
-                    "total",  String.valueOf(total),
-                    "time",   timestamp));
+                    "total", String.valueOf(total),
+                    "time", timestamp));
             Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(c(announce)));
 
             player.showTitle(net.kyori.adventure.title.Title.title(
@@ -142,7 +171,7 @@ public class RareItemsGUI {
             player.showTitle(net.kyori.adventure.title.Title.title(
                     c(item.displayName()),
                     c(plugin.getLang().get("gui.rank", Map.of(
-                            "rank",  String.valueOf(item.rarity()),
+                            "rank", String.valueOf(item.rarity()),
                             "total", String.valueOf(total)))),
                     net.kyori.adventure.title.Title.Times.times(
                             Duration.ofMillis(400), Duration.ofMillis(3000), Duration.ofMillis(800))));
@@ -150,18 +179,50 @@ public class RareItemsGUI {
             player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             spawnFirework(player);
         }
+
+        runConfiguredRewards(player, item, total, allFound, timestamp);
+    }
+
+    private void runConfiguredRewards(Player player, RareItem item, int total, boolean allFound, String timestamp) {
+        if (!plugin.getConfig().getBoolean("rewards.enabled", false)) return;
+
+        List<String> foundCommands = plugin.getConfig().getStringList("rewards.commands.on-found");
+        List<String> completeCommands = plugin.getConfig().getStringList("rewards.commands.on-complete");
+        ConsoleCommandSender console = Bukkit.getConsoleSender();
+
+        for (String raw : foundCommands) {
+            executeConfiguredCommand(console, raw, player, item, total, timestamp);
+        }
+        if (allFound) {
+            for (String raw : completeCommands) {
+                executeConfiguredCommand(console, raw, player, item, total, timestamp);
+            }
+        }
+    }
+
+    private void executeConfiguredCommand(ConsoleCommandSender console, String rawCommand,
+                                          Player player, RareItem item, int total, String timestamp) {
+        if (rawCommand == null || rawCommand.isBlank()) return;
+        String command = rawCommand
+                .replace("{player}", player.getName())
+                .replace("{item}", ChatColor.stripColor(color(item.displayName())))
+                .replace("{id}", item.id())
+                .replace("{rank}", String.valueOf(item.rarity()))
+                .replace("{total}", String.valueOf(total))
+                .replace("{time}", timestamp);
+        Bukkit.dispatchCommand(console, command.startsWith("/") ? command.substring(1) : command);
     }
 
     private ItemStack buildPane(RareItem ri, boolean found, int total) {
         ItemStack pane = new ItemStack(found ? PANE_FOUND : PANE_UNFOUND);
-        ItemMeta  meta = pane.getItemMeta();
-        String    name = ChatColor.stripColor(color(ri.displayName()));
+        ItemMeta meta = pane.getItemMeta();
+        String name = ChatColor.stripColor(color(ri.displayName()));
 
-        meta.displayName(c(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound",
-                Map.of("name", name))));
+        meta.displayName(c(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound", Map.of("name", name))));
         meta.lore(List.of(
                 c(plugin.getLang().get("gui.rank", Map.of(
-                        "rank", String.valueOf(ri.rarity()), "total", String.valueOf(total)))),
+                        "rank", String.valueOf(ri.rarity()),
+                        "total", String.valueOf(total)))),
                 c(plugin.getLang().get(found
                         ? (ri.occurrenceOnly() ? "gui.pane-occurred-label" : "gui.pane-found-label")
                         : "gui.pane-click-hint"))
@@ -173,36 +234,61 @@ public class RareItemsGUI {
 
     private ItemStack buildItem(RareItem ri, boolean found, Player player) {
         ItemStack stack = new ItemStack(ri.material());
-        ItemMeta  meta  = stack.getItemMeta();
-        String    name  = ChatColor.stripColor(color(ri.displayName()));
+        ItemMeta meta = stack.getItemMeta();
+        String name = ChatColor.stripColor(color(ri.displayName()));
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(c("&6&l" + ri.chance()));
+        lore.add(c("&7&o" + ri.description()));
+        lore.add(c(plugin.getLang().get("gui.category-label", Map.of(
+                "category", plugin.getLang().get(filterKey(ri.category()))))));
 
         if (found) {
             String ts = plugin.getPlayerDataManager().getFoundTimestamp(player, ri.id());
-            List<Component> lore = new ArrayList<>();
-            lore.add(c("&6&l" + ri.chance()));
-            lore.add(c("&7&o" + ri.description()));
-            if (!ts.isEmpty()) lore.add(c("&8Gefunden: &7" + ts));
+            if (!ts.isEmpty()) {
+                lore.add(c(plugin.getLang().get("gui.found-at", Map.of("time", ts))));
+            }
             meta.displayName(c("&a&l" + name));
-            meta.lore(lore);
             meta.setEnchantmentGlintOverride(true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         } else {
             meta.displayName(c("&7" + name));
-            meta.lore(List.of(c("&6&l" + ri.chance()), c("&7&o" + ri.description())));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         }
+
+        meta.lore(lore);
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    private ItemStack filterButton(RareItemCategory activeFilter) {
+        ItemStack stack = new ItemStack(Material.HOPPER);
+        ItemMeta meta = stack.getItemMeta();
+        String currentLabel = activeFilter == null
+                ? plugin.getLang().get("gui.filter-all")
+                : plugin.getLang().get(filterKey(activeFilter));
+        String nextLabel = nextFilter(activeFilter) == null
+                ? plugin.getLang().get("gui.filter-all")
+                : plugin.getLang().get(filterKey(nextFilter(activeFilter)));
+
+        meta.displayName(c(plugin.getLang().get("gui.filter-title")));
+        meta.lore(List.of(
+                c(plugin.getLang().get("gui.filter-current", Map.of("filter", currentLabel))),
+                c(plugin.getLang().get("gui.filter-cycle", Map.of("next", nextLabel)))
+        ));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         stack.setItemMeta(meta);
         return stack;
     }
 
     public boolean isPaneRow(int slot) {
         return (slot >= PANE_TOP_START && slot < PANE_TOP_START + COLS)
-            || (slot >= PANE_BOT_START && slot < PANE_BOT_START + COLS);
+                || (slot >= PANE_BOT_START && slot < PANE_BOT_START + COLS);
     }
 
     public boolean isItemRow(int slot) {
         return (slot >= ITEM_TOP_START && slot < ITEM_TOP_START + COLS)
-            || (slot >= ITEM_BOT_START && slot < ITEM_BOT_START + COLS);
+                || (slot >= ITEM_BOT_START && slot < ITEM_BOT_START + COLS);
     }
 
     public int paneSlotToListIndex(int slot, int page) {
@@ -213,71 +299,82 @@ public class RareItemsGUI {
         return -1;
     }
 
+    private ItemStack progressPane(String name, String lore, Material material) {
+        ItemStack stack = new ItemStack(material);
+        ItemMeta meta = stack.getItemMeta();
+        meta.displayName(c(name));
+        if (lore != null && !lore.isEmpty()) meta.lore(List.of(c(lore)));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
+    private ItemStack arrow(boolean next, int currentPage) {
+        ItemStack stack = new ItemStack(Material.ARROW);
+        ItemMeta meta = stack.getItemMeta();
+        meta.displayName(c(plugin.getLang().get(next ? "gui.nav-next" : "gui.nav-prev",
+                Map.of("page", String.valueOf(next ? currentPage + 2 : currentPage)))));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        stack.setItemMeta(meta);
+        return stack;
+    }
+
     private ItemStack filler() {
-        ItemStack s = new ItemStack(NAV_FILLER);
-        ItemMeta  m = s.getItemMeta();
-        m.displayName(c(" "));
-        m.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        s.setItemMeta(m);
-        return s;
-    }
-
-    private ItemStack progressPane(String title, String subtitle, Material mat) {
-        ItemStack s = new ItemStack(mat);
-        ItemMeta  m = s.getItemMeta();
-        m.displayName(c(title));
-        if (subtitle != null) m.lore(List.of(c(subtitle)));
-        m.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        s.setItemMeta(m);
-        return s;
-    }
-
-    private ItemStack arrow(boolean next, int page) {
-        ItemStack a = new ItemStack(Material.ARROW);
-        ItemMeta  m = a.getItemMeta();
-        m.displayName(c(plugin.getLang().get(next ? "gui.nav-next" : "gui.nav-prev",
-                Map.of("page", String.valueOf(next ? page + 2 : page)))));
-        a.setItemMeta(m);
-        return a;
+        ItemStack stack = new ItemStack(NAV_FILLER);
+        ItemMeta meta = stack.getItemMeta();
+        meta.displayName(Component.empty());
+        stack.setItemMeta(meta);
+        return stack;
     }
 
     private void spawnFirework(Player player) {
-        Color[] palette = {Color.YELLOW, Color.ORANGE, Color.RED, Color.AQUA,
-                           Color.LIME, Color.FUCHSIA, Color.WHITE, Color.PURPLE};
-        FireworkEffect fx = FireworkEffect.builder()
-                .withColor(palette[rng.nextInt(palette.length)], palette[rng.nextInt(palette.length)])
-                .withFade(Color.WHITE).with(FireworkEffect.Type.BALL_LARGE).trail(true).flicker(true).build();
-        spawnFw(player.getLocation(), plugin.getConfig().getInt("firework-power", 1), fx);
+        Firework fw = player.getWorld().spawn(player.getLocation().add(0, 1, 0), Firework.class);
+        FireworkMeta meta = fw.getFireworkMeta();
+        meta.setPower(Math.max(0, plugin.getConfig().getInt("firework-power", 1)));
+        meta.addEffect(FireworkEffect.builder()
+                .with(random(FireworkEffect.Type.values()))
+                .withColor(randomColor(), randomColor())
+                .withFade(randomColor())
+                .trail(true).flicker(true).build());
+        fw.setFireworkMeta(meta);
     }
 
     private void spawnMultiFirework(Player player) {
-        int power = Math.max(2, plugin.getConfig().getInt("firework-power", 1) + 1);
-        FireworkEffect.Type[] types  = {FireworkEffect.Type.BALL_LARGE, FireworkEffect.Type.STAR,
-                                        FireworkEffect.Type.BURST, FireworkEffect.Type.CREEPER, FireworkEffect.Type.BALL};
-        Color[][] combos = {{Color.ORANGE, Color.YELLOW}, {Color.FUCHSIA, Color.WHITE},
-                            {Color.AQUA, Color.LIME},   {Color.RED, Color.ORANGE}, {Color.WHITE, Color.PURPLE}};
-        var loc = player.getLocation();
-        for (int i = 0; i < 5; i++) {
-            final int fi = i;
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                double angle = fi * (2 * Math.PI / 5);
-                FireworkEffect fx = FireworkEffect.builder()
-                        .withColor(combos[fi][0], combos[fi][1]).withFade(Color.WHITE)
-                        .with(types[fi]).trail(true).flicker(fi % 2 == 0).build();
-                spawnFw(loc.clone().add(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5), power, fx);
-            }, i * 4L);
+        for (int i = 0; i < 4; i++) {
+            Firework fw = player.getWorld().spawn(player.getLocation().add(rng.nextDouble() - .5, 1, rng.nextDouble() - .5), Firework.class);
+            FireworkMeta meta = fw.getFireworkMeta();
+            meta.setPower(Math.max(1, plugin.getConfig().getInt("firework-power", 1)));
+            meta.addEffect(FireworkEffect.builder()
+                    .with(random(FireworkEffect.Type.values()))
+                    .withColor(randomColor(), randomColor(), randomColor())
+                    .withFade(randomColor())
+                    .trail(true).flicker(true).build());
+            fw.setFireworkMeta(meta);
         }
     }
 
-    private void spawnFw(org.bukkit.Location loc, int power, FireworkEffect fx) {
-        loc.getWorld().spawn(loc, Firework.class, fw -> {
-            FireworkMeta meta = fw.getFireworkMeta();
-            meta.addEffect(fx);
-            meta.setPower(power);
-            fw.setFireworkMeta(meta);
-        });
+    private <T> T random(T[] values) {
+        return values[rng.nextInt(values.length)];
     }
 
-    private static String color(String s) { return ChatColor.translateAlternateColorCodes('&', s); }
-    private static Component c(String s)  { return LegacyComponentSerializer.legacySection().deserialize(color(s)); }
+    private Color randomColor() {
+        return Color.fromRGB(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
+    }
+
+    private Component c(String s) {
+        return LegacyComponentSerializer.legacySection().deserialize(color(s));
+    }
+
+    private String color(String s) {
+        return ChatColor.translateAlternateColorCodes('&', s == null ? "" : s);
+    }
+
+    private String filterKey(RareItemCategory category) {
+        return switch (category) {
+            case ITEM -> "gui.filter-item";
+            case MOB -> "gui.filter-mob";
+            case STRUCTURE -> "gui.filter-structure";
+            case CUSTOM -> "gui.filter-custom";
+        };
+    }
 }
