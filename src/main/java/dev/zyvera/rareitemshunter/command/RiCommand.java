@@ -2,12 +2,19 @@ package dev.zyvera.rareitemshunter.command;
 
 import dev.zyvera.rareitemshunter.RareItemsHunter;
 import dev.zyvera.rareitemshunter.model.RareItem;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.command.*;
+import org.bukkit.ChatColor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class RiCommand implements CommandExecutor, TabCompleter {
@@ -100,16 +107,18 @@ public class RiCommand implements CommandExecutor, TabCompleter {
         if (online != null) {
             plugin.getPlayerDataManager().reset(online);
             send(sender, lang.get("messages.reset-online", Map.of("prefix", lang.prefix(), "player", online.getName())));
-            send(online, lang.get("messages.reset-notify", Map.of("prefix", lang.prefix())));
+            plugin.getSchedulerBridge().runForEntity(online, () ->
+                    send(online, lang.get("messages.reset-notify", Map.of("prefix", lang.prefix()))));
+            return;
+        }
+
+        @SuppressWarnings("deprecation")
+        UUID uuid = Bukkit.getOfflinePlayer(targetName).getUniqueId();
+        if (uuid != null) {
+            plugin.getPlayerDataManager().resetByUUID(uuid);
+            send(sender, lang.get("messages.reset-offline", Map.of("prefix", lang.prefix(), "player", targetName)));
         } else {
-            @SuppressWarnings("deprecation")
-            UUID uuid = Bukkit.getOfflinePlayer(targetName).getUniqueId();
-            if (uuid != null) {
-                plugin.getPlayerDataManager().resetByUUID(uuid);
-                send(sender, lang.get("messages.reset-offline", Map.of("prefix", lang.prefix(), "player", targetName)));
-            } else {
-                send(sender, lang.get("messages.player-not-found", Map.of("prefix", lang.prefix(), "player", targetName)));
-            }
+            send(sender, lang.get("messages.player-not-found", Map.of("prefix", lang.prefix(), "player", targetName)));
         }
     }
 
@@ -135,12 +144,14 @@ public class RiCommand implements CommandExecutor, TabCompleter {
                     "item", ri.displayName())));
             return;
         }
+
         plugin.getPlayerDataManager().markFound(target, ri.id());
         send(sender, lang.get("messages.give-done", Map.of(
                 "prefix", lang.prefix(),
                 "player", target.getName(),
                 "item", ri.displayName())));
-        send(target, lang.get("messages.give-notify", Map.of("prefix", lang.prefix(), "item", ri.displayName())));
+        plugin.getSchedulerBridge().runForEntity(target, () ->
+                send(target, lang.get("messages.give-notify", Map.of("prefix", lang.prefix(), "item", ri.displayName()))));
     }
 
     @Override
@@ -164,12 +175,13 @@ public class RiCommand implements CommandExecutor, TabCompleter {
     }
 
     private void send(CommandSender sender, String msg) {
-        sender.sendMessage(LegacyComponentSerializer.legacySection().deserialize(msg));
+        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', msg == null ? "" : msg));
     }
 
     private List<String> filter(List<String> list, String prefix) {
+        String loweredPrefix = prefix.toLowerCase(Locale.ROOT);
         return list.stream()
-                .filter(s -> s.startsWith(prefix.toLowerCase(Locale.ROOT)))
+                .filter(s -> s.startsWith(loweredPrefix))
                 .collect(Collectors.toList());
     }
 }
