@@ -4,7 +4,7 @@ import dev.zyvera.rareitemshunter.RareItemsHunter;
 import dev.zyvera.rareitemshunter.gui.RareItemsGUI;
 import dev.zyvera.rareitemshunter.model.RareItem;
 import dev.zyvera.rareitemshunter.model.RareItemCategory;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -28,32 +28,47 @@ public class InventoryClickListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (!plugin.hasGuiOpen(player)) return;
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        if (!plugin.hasGuiOpen(player)) {
+            return;
+        }
         event.setCancelled(true);
         int slot = event.getRawSlot();
-
-        if (slot >= 0 && slot < 54) handleClick(player, slot);
+        if (slot >= 0 && slot < 54) {
+            handleClick(player, slot);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onCreativeClick(InventoryCreativeEvent event) {
-
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (plugin.hasGuiOpen(player)) event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        if (plugin.hasGuiOpen(player)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrag(InventoryDragEvent event) {
-
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (plugin.hasGuiOpen(player)) event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        if (plugin.hasGuiOpen(player)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
-        if (!plugin.isNavigationLocked(player.getUniqueId())) plugin.clearGuiPage(player.getUniqueId());
+        if (!(event.getPlayer() instanceof Player player)) {
+            return;
+        }
+        if (!plugin.isNavigationLocked(player.getUniqueId())) {
+            plugin.clearGuiPage(player.getUniqueId());
+        }
     }
 
     private void handleClick(Player player, int slot) {
@@ -68,7 +83,7 @@ public class InventoryClickListener implements Listener {
             return;
         }
         if (slot == RareItemsGUI.SLOT_NEXT) {
-            int maxPage = Math.max(0, (int) Math.ceil((double) visibleTotal / RareItemsGUI.ITEMS_PER_PAGE) - 1);
+            int maxPage = Math.max(0, (visibleTotal + RareItemsGUI.ITEMS_PER_PAGE - 1) / RareItemsGUI.ITEMS_PER_PAGE - 1);
             if (page < maxPage) {
                 plugin.getGui().open(player, page + 1);
                 return;
@@ -81,27 +96,28 @@ public class InventoryClickListener implements Listener {
             return;
         }
 
-        if (slot >= RareItemsGUI.PROGRESS_START) return;
-        if (plugin.getGui().isItemRow(slot)) return;
-        if (!plugin.getGui().isPaneRow(slot)) return;
+        if (slot >= RareItemsGUI.PROGRESS_START || plugin.getGui().isItemRow(slot) || !plugin.getGui().isPaneRow(slot)) {
+            return;
+        }
 
         int listIdx = plugin.getGui().paneSlotToListIndex(slot, page);
-        if (listIdx < 0 || listIdx >= visibleTotal) return;
+        if (listIdx < 0 || listIdx >= visibleTotal) {
+            return;
+        }
 
         RareItem ri = visibleItems.get(listIdx);
 
         if (plugin.getPlayerDataManager().hasFound(player, ri.id())) {
-            player.sendMessage(c(plugin.getLang().get("messages.already-found", Map.of(
+            player.sendMessage(color(plugin.getLang().get("messages.already-found", Map.of(
                     "prefix", plugin.getLang().prefix(),
                     "item", ri.displayName()))));
             return;
         }
 
-        // Inventory check: non-occurrence items require the material to be in the player's inventory
         if (!ri.occurrenceOnly() && !hasItemInInventory(player, ri)) {
-            player.sendMessage(c(plugin.getLang().get("messages.item-not-found", Map.of(
+            player.sendMessage(color(plugin.getLang().get("messages.item-not-found", Map.of(
                     "prefix", plugin.getLang().prefix(),
-                    "item",   ri.displayName()))));
+                    "item", ri.displayName()))));
             return;
         }
 
@@ -116,7 +132,7 @@ public class InventoryClickListener implements Listener {
                 .anyMatch(stack -> stack.getType() == ri.material());
     }
 
-    private net.kyori.adventure.text.Component c(String s) {
-        return LegacyComponentSerializer.legacySection().deserialize(s);
+    private String color(String s) {
+        return ChatColor.translateAlternateColorCodes('&', s == null ? "" : s);
     }
 }
