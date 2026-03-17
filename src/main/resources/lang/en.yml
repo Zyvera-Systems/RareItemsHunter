@@ -31,6 +31,7 @@ messages:
   give-done:        "{prefix}&aItem &f{item} &amarked for &e{player}&a."
   give-notify:      "{prefix}&aItem &f{item} &awas given to you by an admin."
   give-unknown-id:  "{prefix}&cUnknown ID: &f{id}"
+  item-not-found:    "{prefix}&cYou need &f{item} &cin your inventory!"
   unknown-command:  "{prefix}&cUnknown command. Use &f/ri help&c."
   help-header:      "&8&m                              "
   help-line1:       "  &6/ri &8– &fOpen GUI"
