@@ -9,6 +9,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -83,12 +86,23 @@ public class InventoryClickListener implements Listener {
             return;
         }
 
+        // Inventory check: non-occurrence items require the material to be in the player's inventory
+        if (!ri.occurrenceOnly() && !hasItemInInventory(player, ri)) {
+            player.sendMessage(c(plugin.getLang().get("messages.item-not-found", Map.of(
+                    "prefix", plugin.getLang().prefix(),
+                    "item",   ri.displayName()))));
+            return;
+        }
+
         plugin.getPlayerDataManager().markFound(player, ri.id());
-
-        // Close the GUI first so the title and fireworks are fully visible
         player.closeInventory();
-
         plugin.getGui().grantReward(player, ri, total);
+    }
+
+    private boolean hasItemInInventory(Player player, RareItem ri) {
+        return Arrays.stream(player.getInventory().getContents())
+                .filter(stack -> stack != null)
+                .anyMatch(stack -> stack.getType() == ri.material());
     }
 
     private net.kyori.adventure.text.Component c(String s) {
