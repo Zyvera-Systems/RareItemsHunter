@@ -8,10 +8,14 @@ import dev.zyvera.rareitemshunter.listener.PlayerJoinQuitListener;
 import dev.zyvera.rareitemshunter.manager.PlayerDataManager;
 import dev.zyvera.rareitemshunter.manager.RareItemManager;
 import dev.zyvera.rareitemshunter.model.RareItemCategory;
+import dev.zyvera.rareitemshunter.util.SchedulerBridge;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class RareItemsHunter extends JavaPlugin {
 
@@ -19,14 +23,17 @@ public final class RareItemsHunter extends JavaPlugin {
     private PlayerDataManager playerDataManager;
     private RareItemsGUI gui;
     private LangManager lang;
+    private SchedulerBridge schedulerBridge;
 
-    private final Map<UUID, Integer>          openGuiPages   = new HashMap<>();
-    private final Map<UUID, RareItemCategory> openGuiFilters = new HashMap<>();
-    private final Set<UUID>                   navLock        = new HashSet<>();
+    private final Map<UUID, Integer> openGuiPages = new ConcurrentHashMap<>();
+    private final Map<UUID, RareItemCategory> openGuiFilters = new ConcurrentHashMap<>();
+    private final Set<UUID> navLock = ConcurrentHashMap.newKeySet();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+
+        schedulerBridge = new SchedulerBridge(this);
 
         lang = new LangManager(this);
         lang.load();
@@ -51,13 +58,19 @@ public final class RareItemsHunter extends JavaPlugin {
 
         getLogger().info("RareItemsHunter v" + getDescription().getVersion()
                 + " by Zyvera-Systems & Thomas U. | " + rareItemManager.count() + " items loaded.");
+        getLogger().info("Compatibility mode: "
+                + (schedulerBridge.supportsGlobalRegionScheduler()
+                ? "Paper/Folia global scheduler available"
+                : "Bukkit scheduler fallback")
+                + ", entity scheduler "
+                + (schedulerBridge.supportsEntityScheduler() ? "available" : "fallback") + ".");
     }
 
     @Override
     public void onDisable() {
-        getServer().getOnlinePlayers().forEach(p -> {
-            playerDataManager.save(p);
-            playerDataManager.unload(p.getUniqueId());
+        getServer().getOnlinePlayers().forEach(player -> {
+            playerDataManager.save(player);
+            playerDataManager.unload(player.getUniqueId());
         });
         openGuiPages.clear();
         openGuiFilters.clear();
@@ -95,7 +108,7 @@ public final class RareItemsHunter extends JavaPlugin {
 
     public void lockNavigation(UUID uuid) {
         navLock.add(uuid);
-        getServer().getScheduler().runTaskLater(this, () -> navLock.remove(uuid), 1L);
+        schedulerBridge.runGlobalLater(() -> navLock.remove(uuid), 1L);
     }
 
     public boolean isNavigationLocked(UUID uuid) {
@@ -116,5 +129,9 @@ public final class RareItemsHunter extends JavaPlugin {
 
     public LangManager getLang() {
         return lang;
+    }
+
+    public SchedulerBridge getSchedulerBridge() {
+        return schedulerBridge;
     }
 }
