@@ -17,14 +17,353 @@ gui-title: "&8» &6&lSeltene Items &8«"
 announce-find: true
 
 # ─────────────────────────────────────────
-#  Custom items (extends the built-in list)
-#  id:             unique key (no spaces)
-#  material:       Bukkit Material name
-#  name:           display name (&-color codes)
-#  chance:         short chance text  e.g. "0.5 %"
-#  description:    one-line description (italic lore)
-#  rarity:         integer rank (lower = rarer)
-#  occurrence-only: true = click to confirm event (no item needed)
+#  Optional reward commands
+#  Disabled by default.
+#  Placeholders: {player}, {item}, {id}, {rank}, {total}, {time}
+# ─────────────────────────────────────────
+rewards:
+  enabled: false
+  commands:
+    on-found: []
+    on-complete: []
+
+# ─────────────────────────────────────────
+#  Built-in items (editable)
+#  You can change, remove or reorder these entries directly here.
+#  category: item | mob | structure | individuell
+# ─────────────────────────────────────────
+items:
+  - id: "zombie_villager_chicken_diamond"
+    material: "IRON_SWORD"
+    name: "&c&lBaby-Zombie-Dorfbewohner auf Huhn (volle Dia-Rüstung)"
+    rarity: 1
+    chance: "~0.000000000000000000000000000000034 %"
+    description: "Seltenster Mob, der je dokumentiert wurde"
+    occurrence-only: true
+    category: "mob"
+  - id: "endportal_12_eye"
+    material: "ENDER_EYE"
+    name: "&5&l12-Augen-Endportal"
+    rarity: 2
+    chance: "~0.000000000001 %"
+    description: "Alle 12 Rahmen natürlich befüllt"
+    occurrence-only: true
+    category: "structure"
+  - id: "dragon_egg"
+    material: "DRAGON_EGG"
+    name: "&5&lDrachenei"
+    rarity: 3
+    chance: "1x pro Welt"
+    description: "Nur nach dem ersten Enderdrachen-Sieg"
+    occurrence-only: false
+    category: "item"
+  - id: "baby_pink_sheep"
+    material: "PINK_DYE"
+    name: "&d&lBaby-Pinkes Schaf"
+    rarity: 4
+    chance: "~0.0082 %"
+    description: "0.164 % rosa Spawn × 5 % Baby"
+    occurrence-only: true
+    category: "mob"
+  - id: "blue_axolotl"
+    material: "AXOLOTL_BUCKET"
+    name: "&b&lBlaues Axolotl"
+    rarity: 5
+    chance: "~0.083 %"
+    description: "1 von 1200 Axolotln ist blau"
+    occurrence-only: false
+    category: "mob"
+  - id: "trident"
+    material: "TRIDENT"
+    name: "&9&lDreizack"
+    rarity: 6
+    chance: "~0.53 %"
+    description: "Seltener Drop von Ertrunkenen"
+    occurrence-only: false
+    category: "item"
+  - id: "wither_skeleton_skull"
+    material: "WITHER_SKELETON_SKULL"
+    name: "&0&lWither-Skelett-Schädel"
+    rarity: 7
+    chance: "~2.5 %"
+    description: "Benötigt 3 Stück für die Wither-Beschwörung"
+    occurrence-only: false
+    category: "item"
+  - id: "silence_armor_trim"
+    material: "SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE"
+    name: "&8&lSilence-Rüstungsbesatz"
+    rarity: 8
+    chance: "~1.2 %"
+    description: "Alte Stadt – einer der seltensten Item-Funde"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_creator_music_box"
+    material: "MUSIC_DISC_CREATOR_MUSIC_BOX"
+    name: "&d&lMusikscheibe \"Creator (Music Box)\""
+    rarity: 9
+    chance: "~1.4 %"
+    description: "Dekorationstopf in der Prüfungskammer"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_otherside"
+    material: "MUSIC_DISC_OTHERSIDE"
+    name: "&b&lMusikscheibe \"otherside\""
+    rarity: 10
+    chance: "~3.1 %"
+    description: "Verlies- und Festungstruhen"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_creator"
+    material: "MUSIC_DISC_CREATOR"
+    name: "&e&lMusikscheibe \"Creator\""
+    rarity: 11
+    chance: "~3.0 %"
+    description: "Unheilvoller Tresor"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_precipice"
+    material: "MUSIC_DISC_PRECIPICE"
+    name: "&6&lMusikscheibe \"Precipice\""
+    rarity: 12
+    chance: "~3.6 %"
+    description: "Prüfungskammer-Tresor"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_pigstep"
+    material: "MUSIC_DISC_PIGSTEP"
+    name: "&c&lMusikscheibe \"Pigstep\""
+    rarity: 13
+    chance: "~5.6 %"
+    description: "Bastionsüberrest – nicht per Creeper"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_5"
+    material: "MUSIC_DISC_5"
+    name: "&3&lMusikscheibe \"5\""
+    rarity: 14
+    chance: "~0.8 % pro Fragment"
+    description: "9 Fragmente aus Truhen der Alten Stadt"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_relic"
+    material: "MUSIC_DISC_RELIC"
+    name: "&6&lMusikscheibe \"Relic\""
+    rarity: 15
+    chance: "~7.7 %"
+    description: "Verdächtiger Kies in Pfadruinen"
+    occurrence-only: false
+    category: "item"
+  - id: "music_disc_11"
+    material: "MUSIC_DISC_11"
+    name: "&c&lMusikscheibe \"11\""
+    rarity: 16
+    chance: "~0.5 %"
+    description: "Creeper muss von einem Skelett getötet werden"
+    occurrence-only: false
+    category: "item"
+  - id: "enchanted_golden_apple"
+    material: "ENCHANTED_GOLDEN_APPLE"
+    name: "&6&lVerzauberter Goldapfel"
+    rarity: 17
+    chance: "~2.5 %"
+    description: "Festung, Bastion oder Ruiniertes Portal"
+    occurrence-only: false
+    category: "item"
+  - id: "heavy_core"
+    material: "HEAVY_CORE"
+    name: "&8&lSchwerer Kern"
+    rarity: 18
+    chance: "~7.5 %"
+    description: "Unheilvoller Tresor der Prüfungskammer"
+    occurrence-only: false
+    category: "item"
+  - id: "heart_of_the_sea"
+    material: "HEART_OF_THE_SEA"
+    name: "&3&lHerz des Meeres"
+    rarity: 19
+    chance: "100 %"
+    description: "1x pro versteckter Schatztruhe"
+    occurrence-only: false
+    category: "item"
+  - id: "echo_shard"
+    material: "ECHO_SHARD"
+    name: "&3&lEcho-Scherbe"
+    rarity: 20
+    chance: "~29.8 %"
+    description: "Truhen in der Alten Stadt"
+    occurrence-only: false
+    category: "item"
+  - id: "sniffer_egg"
+    material: "SNIFFER_EGG"
+    name: "&a&lSchnüffler-Ei"
+    rarity: 21
+    chance: "~6.7 %"
+    description: "Warme Meeresruinen"
+    occurrence-only: false
+    category: "item"
+  - id: "bolt_armor_trim"
+    material: "BOLT_ARMOR_TRIM_SMITHING_TEMPLATE"
+    name: "&b&lBolt-Rüstungsbesatz"
+    rarity: 22
+    chance: "~6.2 %"
+    description: "Tresor in der Prüfungskammer"
+    occurrence-only: false
+    category: "item"
+  - id: "spire_armor_trim"
+    material: "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE"
+    name: "&d&lSpire-Rüstungsbesatz"
+    rarity: 23
+    chance: "~6.7 %"
+    description: "Truhe in der Endstadt"
+    occurrence-only: false
+    category: "item"
+  - id: "snout_armor_trim"
+    material: "SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE"
+    name: "&6&lSnout-Rüstungsbesatz"
+    rarity: 24
+    chance: "~8.3 %"
+    description: "Bastionsüberrest-Truhe"
+    occurrence-only: false
+    category: "item"
+  - id: "ominous_trial_key"
+    material: "OMINOUS_TRIAL_KEY"
+    name: "&4&lUnheilvoller Prüfungsschlüssel"
+    rarity: 25
+    chance: "~30 %"
+    description: "Unheilvoller Spawner (Bad Omen benötigt)"
+    occurrence-only: false
+    category: "item"
+  - id: "breeze_rod"
+    material: "BREEZE_ROD"
+    name: "&b&lBreeze-Stab"
+    rarity: 26
+    chance: "~33 % (1–2 Drops)"
+    description: "Nur in Prüfungskammern"
+    occurrence-only: false
+    category: "item"
+  - id: "ancient_debris"
+    material: "ANCIENT_DEBRIS"
+    name: "&8&lUralter Schutt"
+    rarity: 27
+    chance: "~1.7 pro Chunk"
+    description: "Nether, y=15 ist optimal"
+    occurrence-only: false
+    category: "item"
+  - id: "nether_star"
+    material: "NETHER_STAR"
+    name: "&f&lNetherstern"
+    rarity: 28
+    chance: "100 % beim Wither"
+    description: "Wither muss beschworen werden"
+    occurrence-only: false
+    category: "item"
+  - id: "elytra"
+    material: "ELYTRA"
+    name: "&6&lElytra"
+    rarity: 29
+    chance: "100 %"
+    description: "1x pro Endstadtschiff"
+    occurrence-only: false
+    category: "item"
+  - id: "tide_armor_trim"
+    material: "TIDE_ARMOR_TRIM_SMITHING_TEMPLATE"
+    name: "&3&lTide-Rüstungsbesatz"
+    rarity: 30
+    chance: "~20 %"
+    description: "Drop vom Ältesten Wächter"
+    occurrence-only: false
+    category: "item"
+  - id: "rabbit_foot"
+    material: "RABBIT_FOOT"
+    name: "&e&lHasenpfote"
+    rarity: 31
+    chance: "~10 %"
+    description: "Drop bei Hasen (mit Plünderung höher)"
+    occurrence-only: false
+    category: "item"
+  - id: "brown_mooshroom"
+    material: "BROWN_MUSHROOM"
+    name: "&6&lBraune Pilzkuh"
+    rarity: 32
+    chance: "~0.098 %"
+    description: "1/1024 bei Zucht von zwei roten Pilzkühen"
+    occurrence-only: true
+    category: "mob"
+  - id: "brown_panda"
+    material: "BAMBOO"
+    name: "&6&lBrauner Panda"
+    rarity: 33
+    chance: "~1.563 %"
+    description: "Braune Haupt- und versteckte Gene gleichzeitig"
+    occurrence-only: true
+    category: "mob"
+  - id: "baby_brown_sheep"
+    material: "BROWN_DYE"
+    name: "&6&lBaby-Braunes Schaf"
+    rarity: 34
+    chance: "~0.15 %"
+    description: "3 % braun × 5 % Baby"
+    occurrence-only: true
+    category: "mob"
+  - id: "pink_sheep"
+    material: "PINK_WOOL"
+    name: "&d&lPinkes Schaf"
+    rarity: 35
+    chance: "~0.164 %"
+    description: "Natürlicher Spawn"
+    occurrence-only: true
+    category: "mob"
+  - id: "brown_sheep"
+    material: "BROWN_WOOL"
+    name: "&6&lBraunes Schaf"
+    rarity: 36
+    chance: "~2.85 %"
+    description: "Natürlicher Spawn"
+    occurrence-only: true
+    category: "mob"
+  - id: "spider_jockey"
+    material: "COBWEB"
+    name: "&8&lSpinnen-Jockey"
+    rarity: 37
+    chance: "~1 %"
+    description: "Skelett reitet auf Spinne"
+    occurrence-only: true
+    category: "mob"
+  - id: "chicken_jockey"
+    material: "FEATHER"
+    name: "&a&lHuhn-Jockey"
+    rarity: 38
+    chance: "~0.25 %"
+    description: "Baby-Zombie reitet auf Huhn"
+    occurrence-only: true
+    category: "mob"
+  - id: "skeleton_horse_trap"
+    material: "SKELETON_HORSE_SPAWN_EGG"
+    name: "&7&lSkelettpferd-Falle"
+    rarity: 39
+    chance: "~0.75–6.75 %"
+    description: "Natürliches Gewitter-Blitzereignis"
+    occurrence-only: true
+    category: "mob"
+  - id: "charged_creeper"
+    material: "GUNPOWDER"
+    name: "&b&lGeladener Creeper"
+    rarity: 40
+    chance: "sehr selten"
+    description: "Blitz trifft Creeper in der Nähe"
+    occurrence-only: true
+    category: "mob"
+  - id: "cactus_5high"
+    material: "CACTUS"
+    name: "&2&lKaktus – 5 Blöcke hoch"
+    rarity: 41
+    chance: "~0.003 %"
+    description: "Benötigt zusätzliche Wachstumszyklen"
+    occurrence-only: true
+    category: "item"
+
+# ─────────────────────────────────────────
+#  Additional custom items (extends the built-in list)
 # ─────────────────────────────────────────
 custom-items: []
 # Example:
@@ -36,3 +375,4 @@ custom-items: []
 #     description: "Somehow found a full diamond block"
 #     rarity: 50
 #     occurrence-only: false
+#     category: "individuell"
