@@ -3,19 +3,25 @@ package dev.zyvera.rareitemshunter.model;
 import org.bukkit.Material;
 
 public record RareItem(
-        String   id,
+        String id,
         Material material,
-        String   displayName,
-        int      rarity,
-        String   chance,
-        String   description,
-        boolean  occurrenceOnly
+        String displayName,
+        int rarity,
+        String chance,
+        String description,
+        boolean occurrenceOnly,
+        RareItemCategory category
 ) {
     public RareItem(String id, Material material, String displayName, int rarity, String chance, String description) {
-        this(id, material, displayName, rarity, chance, description, false);
+        this(id, material, displayName, rarity, chance, description, false, RareItemCategory.ITEM);
+    }
+
+    public RareItem(String id, Material material, String displayName, int rarity, String chance,
+                    String description, boolean occurrenceOnly) {
+        this(id, material, displayName, rarity, chance, description, occurrenceOnly, RareItemCategory.ITEM);
     }
 
     public boolean isCustom() {
-        return id.startsWith("custom_");
+        return category == RareItemCategory.CUSTOM || id.startsWith("custom_");
     }
 }
