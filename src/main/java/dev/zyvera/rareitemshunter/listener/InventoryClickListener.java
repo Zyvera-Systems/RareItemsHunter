@@ -3,13 +3,16 @@ package dev.zyvera.rareitemshunter.listener;
 import dev.zyvera.rareitemshunter.RareItemsHunter;
 import dev.zyvera.rareitemshunter.gui.RareItemsGUI;
 import dev.zyvera.rareitemshunter.model.RareItem;
+import dev.zyvera.rareitemshunter.model.RareItemCategory;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.*;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 
 import java.util.Arrays;
 import java.util.List;
@@ -49,25 +52,33 @@ public class InventoryClickListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
-
         if (!(event.getPlayer() instanceof Player player)) return;
-        if (!plugin.isNavigationLocked(player.getUniqueId()))
-            plugin.clearGuiPage(player.getUniqueId());
+        if (!plugin.isNavigationLocked(player.getUniqueId())) plugin.clearGuiPage(player.getUniqueId());
     }
 
     private void handleClick(Player player, int slot) {
         int page = plugin.getGuiPage(player.getUniqueId());
-        int total = plugin.getRareItemManager().count();
-        List<RareItem> all = plugin.getRareItemManager().getItems();
+        RareItemCategory currentFilter = plugin.getGuiFilter(player.getUniqueId());
+        List<RareItem> visibleItems = plugin.getRareItemManager().getItems(currentFilter);
+        int visibleTotal = visibleItems.size();
+        int totalAll = plugin.getRareItemManager().count();
 
         if (slot == RareItemsGUI.SLOT_PREV && page > 0) {
             plugin.getGui().open(player, page - 1);
             return;
         }
-
         if (slot == RareItemsGUI.SLOT_NEXT) {
-            int maxPage = Math.max(0, (int) Math.ceil((double) total / RareItemsGUI.ITEMS_PER_PAGE) - 1);
-            if (page < maxPage) { plugin.getGui().open(player, page + 1); return; }
+            int maxPage = Math.max(0, (int) Math.ceil((double) visibleTotal / RareItemsGUI.ITEMS_PER_PAGE) - 1);
+            if (page < maxPage) {
+                plugin.getGui().open(player, page + 1);
+                return;
+            }
+        }
+
+        if (slot == RareItemsGUI.SLOT_FILTER) {
+            plugin.setGuiFilter(player.getUniqueId(), plugin.getGui().nextFilter(currentFilter));
+            plugin.getGui().open(player, 0);
+            return;
         }
 
         if (slot >= RareItemsGUI.PROGRESS_START) return;
@@ -75,9 +86,9 @@ public class InventoryClickListener implements Listener {
         if (!plugin.getGui().isPaneRow(slot)) return;
 
         int listIdx = plugin.getGui().paneSlotToListIndex(slot, page);
-        if (listIdx < 0 || listIdx >= total) return;
+        if (listIdx < 0 || listIdx >= visibleTotal) return;
 
-        RareItem ri = all.get(listIdx);
+        RareItem ri = visibleItems.get(listIdx);
 
         if (plugin.getPlayerDataManager().hasFound(player, ri.id())) {
             player.sendMessage(c(plugin.getLang().get("messages.already-found", Map.of(
@@ -96,7 +107,7 @@ public class InventoryClickListener implements Listener {
 
         plugin.getPlayerDataManager().markFound(player, ri.id());
         player.closeInventory();
-        plugin.getGui().grantReward(player, ri, total);
+        plugin.getGui().grantReward(player, ri, totalAll);
     }
 
     private boolean hasItemInInventory(Player player, RareItem ri) {
