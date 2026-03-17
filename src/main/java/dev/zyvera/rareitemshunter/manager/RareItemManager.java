@@ -5,8 +5,15 @@ import dev.zyvera.rareitemshunter.model.RareItem;
 import dev.zyvera.rareitemshunter.model.RareItemCategory;
 import org.bukkit.Material;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 public class RareItemManager {
 
@@ -14,7 +21,9 @@ public class RareItemManager {
     private static final String CUSTOM_ITEMS_PATH = "custom-items";
 
     private final RareItemsHunter plugin;
-    private final List<RareItem> items = new ArrayList<>();
+    private volatile List<RareItem> items = List.of();
+    private volatile Map<RareItemCategory, List<RareItem>> itemsByCategory = Map.of();
+    private volatile Map<String, RareItem> itemsById = Map.of();
 
     // { id, Material, displayName, rarityRank, shortChance, shortDescription, occurrenceOnly, category }
     private static final Object[][] DEFAULTS = {
@@ -188,18 +197,35 @@ public class RareItemManager {
         this.plugin = plugin;
     }
 
-    public void reload() {
+    public synchronized void reload() {
         ensureEditableDefaultItems();
         migrateBuiltInCategories();
 
-        items.clear();
-        loadConfiguredItems(DEFAULT_ITEMS_PATH, false, RareItemCategory.ITEM);
-        loadConfiguredItems(CUSTOM_ITEMS_PATH, true, RareItemCategory.CUSTOM);
+        List<RareItem> loadedItems = new ArrayList<>();
+        loadConfiguredItems(loadedItems, DEFAULT_ITEMS_PATH, false, RareItemCategory.ITEM);
+        loadConfiguredItems(loadedItems, CUSTOM_ITEMS_PATH, true, RareItemCategory.CUSTOM);
 
-        items.sort(Comparator.comparingInt(RareItem::rarity));
-        plugin.getLogger().info("Loaded " + items.size() + " rare items.");
+        loadedItems.sort(Comparator.comparingInt(RareItem::rarity));
+
+        List<RareItem> immutableItems = List.copyOf(loadedItems);
+        EnumMap<RareItemCategory, List<RareItem>> categorized = new EnumMap<>(RareItemCategory.class);
+        for (RareItemCategory category : RareItemCategory.values()) {
+            categorized.put(category, immutableItems.stream()
+                    .filter(item -> item.category() == category)
+                    .toList());
+        }
+
+        Map<String, RareItem> idIndex = new HashMap<>();
+        for (RareItem item : immutableItems) {
+            idIndex.put(item.id(), item);
+        }
+
+        this.items = immutableItems;
+        this.itemsByCategory = Map.copyOf(categorized);
+        this.itemsById = Map.copyOf(idIndex);
+
+        plugin.getLogger().info("Loaded " + immutableItems.size() + " rare items.");
     }
-
 
     private void migrateBuiltInCategories() {
         List<Map<?, ?>> configured = plugin.getConfig().getMapList(DEFAULT_ITEMS_PATH);
@@ -267,8 +293,8 @@ public class RareItemManager {
         return defaults;
     }
 
-    private void loadConfiguredItems(String path, boolean prefixCustomId, RareItemCategory defaultCategory) {
-        int fallback = maxRarity() + 1;
+    private void loadConfiguredItems(List<RareItem> target, String path, boolean prefixCustomId, RareItemCategory defaultCategory) {
+        int fallback = maxRarity(target) + 1;
         for (Map<?, ?> raw : plugin.getConfig().getMapList(path)) {
             Object idValue = raw.containsKey("id") ? raw.get("id") : "item_" + fallback;
             String baseId = String.valueOf(idValue).trim();
@@ -299,7 +325,7 @@ public class RareItemManager {
             }
 
             try {
-                items.add(new RareItem(id, Material.valueOf(matName), name, rarity, chance, desc, occurrenceOnly, category));
+                target.add(new RareItem(id, Material.valueOf(matName), name, rarity, chance, desc, occurrenceOnly, category));
             } catch (IllegalArgumentException e) {
                 plugin.getLogger().warning("Unknown material '" + matName + "' in " + path + " – skipped.");
             }
@@ -328,14 +354,14 @@ public class RareItemManager {
     }
 
     public List<RareItem> getItems() {
-        return Collections.unmodifiableList(items);
+        return items;
     }
 
     public List<RareItem> getItems(RareItemCategory filter) {
-        if (filter == null) return getItems();
-        return items.stream()
-                .filter(item -> item.category() == filter)
-                .collect(Collectors.toUnmodifiableList());
+        if (filter == null) {
+            return items;
+        }
+        return itemsByCategory.getOrDefault(filter, List.of());
     }
 
     public int count() {
@@ -343,10 +369,10 @@ public class RareItemManager {
     }
 
     public Optional<RareItem> findById(String id) {
-        return items.stream().filter(r -> r.id().equals(id)).findFirst();
+        return Optional.ofNullable(itemsById.get(id));
     }
 
-    private int maxRarity() {
-        return items.stream().mapToInt(RareItem::rarity).max().orElse(0);
+    private int maxRarity(List<RareItem> source) {
+        return source.stream().mapToInt(RareItem::rarity).max().orElse(0);
     }
 }

@@ -8,7 +8,14 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class PlayerDataManager {
 
@@ -17,80 +24,116 @@ public class PlayerDataManager {
     private final RareItemsHunter        plugin;
     private final File                   dataDir;
 
-    private final Map<UUID, Map<String, String>> cache = new HashMap<>();
+    // uuid -> itemId -> timestamp (or empty string for legacy entries)
+    private final ConcurrentMap<UUID, ConcurrentMap<String, String>> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Object> fileLocks = new ConcurrentHashMap<>();
 
     public PlayerDataManager(RareItemsHunter plugin) {
-        this.plugin  = plugin;
+        this.plugin = plugin;
         this.dataDir = new File(plugin.getDataFolder(), "playerdata");
-        if (!dataDir.exists()) dataDir.mkdirs();
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
+        }
     }
 
     public void load(Player player) {
         UUID uuid = player.getUniqueId();
-        if (cache.containsKey(uuid)) return;
-
-        Map<String, String> data = new LinkedHashMap<>();
-        File file = file(uuid);
-
-        if (file.exists()) {
-            YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
-            List<String> legacy = cfg.getStringList("found-items");
-
-            for (String id : legacy) {
-                data.put(id, cfg.getString("timestamps." + id, ""));
-            }
-        }
-
-        cache.put(uuid, data);
+        cache.computeIfAbsent(uuid, ignored -> loadFromDisk(uuid));
     }
 
     public void save(Player player) {
-        Map<String, String> data = cache.getOrDefault(player.getUniqueId(), Map.of());
+        UUID uuid = player.getUniqueId();
+        Map<String, String> snapshot = Map.copyOf(cache.getOrDefault(uuid, new ConcurrentHashMap<>()));
         YamlConfiguration cfg = new YamlConfiguration();
-        cfg.set("found-items", new ArrayList<>(data.keySet()));
-        data.forEach((id, ts) -> { if (!ts.isEmpty()) cfg.set("timestamps." + id, ts); });
+        cfg.set("found-items", new ArrayList<>(snapshot.keySet()));
+        snapshot.forEach((id, ts) -> {
+            if (!ts.isEmpty()) {
+                cfg.set("timestamps." + id, ts);
+            }
+        });
 
-        try { cfg.save(file(player.getUniqueId())); }
-        catch (IOException e) { plugin.getLogger().severe("Could not save data for " + player.getName()); }
+        synchronized (lock(uuid)) {
+            try {
+                cfg.save(file(uuid));
+            } catch (IOException e) {
+                plugin.getLogger().severe("Could not save data for " + player.getName());
+            }
+        }
     }
 
-    public void unload(UUID uuid) { cache.remove(uuid); }
+    public void unload(UUID uuid) {
+        cache.remove(uuid);
+    }
 
     public boolean hasFound(Player player, String itemId) {
         ensure(player);
-        return cache.getOrDefault(player.getUniqueId(), Map.of()).containsKey(itemId);
+        return cache.getOrDefault(player.getUniqueId(), new ConcurrentHashMap<>()).containsKey(itemId);
     }
 
     public void markFound(Player player, String itemId) {
         ensure(player);
-        cache.computeIfAbsent(player.getUniqueId(), k -> new LinkedHashMap<>())
-             .put(itemId, LocalDateTime.now().format(FMT));
+        cache.computeIfAbsent(player.getUniqueId(), ignored -> new ConcurrentHashMap<>())
+                .put(itemId, LocalDateTime.now().format(FMT));
         save(player);
     }
 
     public String getFoundTimestamp(Player player, String itemId) {
         ensure(player);
-        return cache.getOrDefault(player.getUniqueId(), Map.of()).getOrDefault(itemId, "");
+        return cache.getOrDefault(player.getUniqueId(), new ConcurrentHashMap<>()).getOrDefault(itemId, "");
     }
 
     public Set<String> getFoundItems(Player player) {
         ensure(player);
-        return Collections.unmodifiableSet(cache.getOrDefault(player.getUniqueId(), Map.of()).keySet());
+        return Collections.unmodifiableSet(new HashSet<>(
+                cache.getOrDefault(player.getUniqueId(), new ConcurrentHashMap<>()).keySet()
+        ));
     }
 
-    public int countFound(Player player) { return getFoundItems(player).size(); }
+    public int countFound(Player player) {
+        ensure(player);
+        return cache.getOrDefault(player.getUniqueId(), new ConcurrentHashMap<>()).size();
+    }
 
     public void reset(Player player) {
-        cache.put(player.getUniqueId(), new LinkedHashMap<>());
+        cache.put(player.getUniqueId(), new ConcurrentHashMap<>());
         save(player);
     }
 
     public boolean resetByUUID(UUID uuid) {
         cache.remove(uuid);
-        File f = file(uuid);
-        return !f.exists() || f.delete();
+        synchronized (lock(uuid)) {
+            File file = file(uuid);
+            return !file.exists() || file.delete();
+        }
     }
 
-    private void ensure(Player player) { if (!cache.containsKey(player.getUniqueId())) load(player); }
-    private File file(UUID uuid)       { return new File(dataDir, uuid + ".yml"); }
+    private void ensure(Player player) {
+        if (!cache.containsKey(player.getUniqueId())) {
+            load(player);
+        }
+    }
+
+    private ConcurrentMap<String, String> loadFromDisk(UUID uuid) {
+        ConcurrentMap<String, String> data = new ConcurrentHashMap<>();
+        File file = file(uuid);
+        if (!file.exists()) {
+            return data;
+        }
+
+        synchronized (lock(uuid)) {
+            YamlConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+            for (String id : cfg.getStringList("found-items")) {
+                data.put(id, cfg.getString("timestamps." + id, ""));
+            }
+        }
+        return data;
+    }
+
+    private Object lock(UUID uuid) {
+        return fileLocks.computeIfAbsent(uuid, ignored -> new Object());
+    }
+
+    private File file(UUID uuid) {
+        return new File(dataDir, uuid + ".yml");
+    }
 }
