@@ -3,8 +3,6 @@ package dev.zyvera.rareitemshunter.gui;
 import dev.zyvera.rareitemshunter.RareItemsHunter;
 import dev.zyvera.rareitemshunter.model.RareItem;
 import dev.zyvera.rareitemshunter.model.RareItemCategory;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Firework;
@@ -15,10 +13,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 public class RareItemsGUI {
 
@@ -61,7 +63,7 @@ public class RareItemsGUI {
         List<RareItem> visibleItems = plugin.getRareItemManager().getItems(filter);
         int visibleTotal = visibleItems.size();
         int globalTotal = plugin.getRareItemManager().count();
-        int maxPage = Math.max(0, (int) Math.ceil((double) visibleTotal / ITEMS_PER_PAGE) - 1);
+        int maxPage = Math.max(0, (visibleTotal + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE - 1);
         page = Math.max(0, Math.min(page, maxPage));
 
         plugin.lockNavigation(player.getUniqueId());
@@ -72,10 +74,15 @@ public class RareItemsGUI {
                 ? ""
                 : ChatColor.DARK_GRAY + " • " + color(plugin.getLang().get(filterKey(filter)));
         String title = color(rawTitle) + filterSuffix + ChatColor.GRAY + " [" + (page + 1) + "/" + (maxPage + 1) + "]";
-        Inventory inv = Bukkit.createInventory(null, 54, c(title));
+        Inventory inv = Bukkit.createInventory(null, 54, title);
 
         Set<String> found = plugin.getPlayerDataManager().getFoundItems(player);
-        int foundCount = (int) visibleItems.stream().filter(item -> found.contains(item.id())).count();
+        int foundCount = 0;
+        for (RareItem item : visibleItems) {
+            if (found.contains(item.id())) {
+                foundCount++;
+            }
+        }
         boolean full = visibleTotal > 0 && foundCount >= visibleTotal;
 
         for (int col = 0; col < COLS; col++) {
@@ -145,7 +152,7 @@ public class RareItemsGUI {
         boolean allFound = foundCount >= total;
         String timestamp = LocalDateTime.now().format(TIME_FMT);
 
-        player.sendMessage(c(plugin.getLang().get("messages.marked-found", Map.of(
+        player.sendMessage(color(plugin.getLang().get("messages.marked-found", Map.of(
                 "prefix", plugin.getLang().prefix(),
                 "item", item.displayName(),
                 "rank", String.valueOf(item.rarity()),
@@ -157,24 +164,24 @@ public class RareItemsGUI {
                     "player", player.getName(),
                     "total", String.valueOf(total),
                     "time", timestamp));
-            Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(c(announce)));
+            plugin.getSchedulerBridge().runGlobal(() -> Bukkit.broadcastMessage(color(announce)));
 
-            player.showTitle(net.kyori.adventure.title.Title.title(
-                    c(plugin.getLang().get("messages.complete-title")),
-                    c(plugin.getLang().get("messages.complete-subtitle", Map.of("total", String.valueOf(total)))),
-                    net.kyori.adventure.title.Title.Times.times(
-                            Duration.ofMillis(500), Duration.ofMillis(5000), Duration.ofMillis(1000))));
+            player.sendTitle(
+                    color(plugin.getLang().get("messages.complete-title")),
+                    color(plugin.getLang().get("messages.complete-subtitle", Map.of("total", String.valueOf(total)))),
+                    10, 100, 20
+            );
 
             player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 0.8f);
             spawnMultiFirework(player);
         } else {
-            player.showTitle(net.kyori.adventure.title.Title.title(
-                    c(item.displayName()),
-                    c(plugin.getLang().get("gui.rank", Map.of(
+            player.sendTitle(
+                    color(item.displayName()),
+                    color(plugin.getLang().get("gui.rank", Map.of(
                             "rank", String.valueOf(item.rarity()),
                             "total", String.valueOf(total)))),
-                    net.kyori.adventure.title.Title.Times.times(
-                            Duration.ofMillis(400), Duration.ofMillis(3000), Duration.ofMillis(800))));
+                    8, 60, 16
+            );
 
             player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             spawnFirework(player);
@@ -184,7 +191,9 @@ public class RareItemsGUI {
     }
 
     private void runConfiguredRewards(Player player, RareItem item, int total, boolean allFound, String timestamp) {
-        if (!plugin.getConfig().getBoolean("rewards.enabled", false)) return;
+        if (!plugin.getConfig().getBoolean("rewards.enabled", false)) {
+            return;
+        }
 
         List<String> foundCommands = plugin.getConfig().getStringList("rewards.commands.on-found");
         List<String> completeCommands = plugin.getConfig().getStringList("rewards.commands.on-complete");
@@ -202,7 +211,10 @@ public class RareItemsGUI {
 
     private void executeConfiguredCommand(ConsoleCommandSender console, String rawCommand,
                                           Player player, RareItem item, int total, String timestamp) {
-        if (rawCommand == null || rawCommand.isBlank()) return;
+        if (rawCommand == null || rawCommand.isBlank()) {
+            return;
+        }
+
         String command = rawCommand
                 .replace("{player}", player.getName())
                 .replace("{item}", ChatColor.stripColor(color(item.displayName())))
@@ -210,7 +222,10 @@ public class RareItemsGUI {
                 .replace("{rank}", String.valueOf(item.rarity()))
                 .replace("{total}", String.valueOf(total))
                 .replace("{time}", timestamp);
-        Bukkit.dispatchCommand(console, command.startsWith("/") ? command.substring(1) : command);
+
+        plugin.getSchedulerBridge().runGlobal(() ->
+                Bukkit.dispatchCommand(console, command.startsWith("/") ? command.substring(1) : command)
+        );
     }
 
     private ItemStack buildPane(RareItem ri, boolean found, int total) {
@@ -218,14 +233,14 @@ public class RareItemsGUI {
         ItemMeta meta = pane.getItemMeta();
         String name = ChatColor.stripColor(color(ri.displayName()));
 
-        meta.displayName(c(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound", Map.of("name", name))));
-        meta.lore(List.of(
-                c(plugin.getLang().get("gui.rank", Map.of(
+        meta.setDisplayName(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound", Map.of("name", name)));
+        meta.setLore(List.of(
+                plugin.getLang().get("gui.rank", Map.of(
                         "rank", String.valueOf(ri.rarity()),
-                        "total", String.valueOf(total)))),
-                c(plugin.getLang().get(found
+                        "total", String.valueOf(total))),
+                plugin.getLang().get(found
                         ? (ri.occurrenceOnly() ? "gui.pane-occurred-label" : "gui.pane-found-label")
-                        : "gui.pane-click-hint"))
+                        : "gui.pane-click-hint")
         ));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         pane.setItemMeta(meta);
@@ -235,28 +250,28 @@ public class RareItemsGUI {
     private ItemStack buildItem(RareItem ri, boolean found, Player player) {
         ItemStack stack = new ItemStack(ri.material());
         ItemMeta meta = stack.getItemMeta();
-        String name = ChatColor.stripColor(color(ri.displayName()));
+        String plainName = ChatColor.stripColor(color(ri.displayName()));
 
-        List<Component> lore = new ArrayList<>();
-        lore.add(c("&6&l" + ri.chance()));
-        lore.add(c("&7&o" + ri.description()));
-        lore.add(c(plugin.getLang().get("gui.category-label", Map.of(
-                "category", plugin.getLang().get(filterKey(ri.category()))))));
+        List<String> lore = new ArrayList<>();
+        lore.add(color("&6&l" + ri.chance()));
+        lore.add(color("&7&o" + ri.description()));
+        lore.add(plugin.getLang().get("gui.category-label", Map.of(
+                "category", plugin.getLang().get(filterKey(ri.category())))));
 
         if (found) {
             String ts = plugin.getPlayerDataManager().getFoundTimestamp(player, ri.id());
             if (!ts.isEmpty()) {
-                lore.add(c(plugin.getLang().get("gui.found-at", Map.of("time", ts))));
+                lore.add(plugin.getLang().get("gui.found-at", Map.of("time", ts)));
             }
-            meta.displayName(c("&a&l" + name));
+            meta.setDisplayName(color("&a&l" + plainName));
             meta.setEnchantmentGlintOverride(true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         } else {
-            meta.displayName(c("&7" + name));
+            meta.setDisplayName(color("&7" + plainName));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         }
 
-        meta.lore(lore);
+        meta.setLore(lore);
         stack.setItemMeta(meta);
         return stack;
     }
@@ -264,17 +279,18 @@ public class RareItemsGUI {
     private ItemStack filterButton(RareItemCategory activeFilter) {
         ItemStack stack = new ItemStack(Material.HOPPER);
         ItemMeta meta = stack.getItemMeta();
+        RareItemCategory nextFilter = nextFilter(activeFilter);
         String currentLabel = activeFilter == null
                 ? plugin.getLang().get("gui.filter-all")
                 : plugin.getLang().get(filterKey(activeFilter));
-        String nextLabel = nextFilter(activeFilter) == null
+        String nextLabel = nextFilter == null
                 ? plugin.getLang().get("gui.filter-all")
-                : plugin.getLang().get(filterKey(nextFilter(activeFilter)));
+                : plugin.getLang().get(filterKey(nextFilter));
 
-        meta.displayName(c(plugin.getLang().get("gui.filter-title")));
-        meta.lore(List.of(
-                c(plugin.getLang().get("gui.filter-current", Map.of("filter", currentLabel))),
-                c(plugin.getLang().get("gui.filter-cycle", Map.of("next", nextLabel)))
+        meta.setDisplayName(plugin.getLang().get("gui.filter-title"));
+        meta.setLore(List.of(
+                plugin.getLang().get("gui.filter-current", Map.of("filter", currentLabel)),
+                plugin.getLang().get("gui.filter-cycle", Map.of("next", nextLabel))
         ));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         stack.setItemMeta(meta);
@@ -292,18 +308,22 @@ public class RareItemsGUI {
     }
 
     public int paneSlotToListIndex(int slot, int page) {
-        if (slot >= PANE_TOP_START && slot < PANE_TOP_START + COLS)
+        if (slot >= PANE_TOP_START && slot < PANE_TOP_START + COLS) {
             return page * ITEMS_PER_PAGE + (slot - PANE_TOP_START);
-        if (slot >= PANE_BOT_START && slot < PANE_BOT_START + COLS)
+        }
+        if (slot >= PANE_BOT_START && slot < PANE_BOT_START + COLS) {
             return page * ITEMS_PER_PAGE + COLS + (slot - PANE_BOT_START);
+        }
         return -1;
     }
 
     private ItemStack progressPane(String name, String lore, Material material) {
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(c(name));
-        if (lore != null && !lore.isEmpty()) meta.lore(List.of(c(lore)));
+        meta.setDisplayName(name);
+        if (lore != null && !lore.isEmpty()) {
+            meta.setLore(List.of(lore));
+        }
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         stack.setItemMeta(meta);
         return stack;
@@ -312,8 +332,8 @@ public class RareItemsGUI {
     private ItemStack arrow(boolean next, int currentPage) {
         ItemStack stack = new ItemStack(Material.ARROW);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(c(plugin.getLang().get(next ? "gui.nav-next" : "gui.nav-prev",
-                Map.of("page", String.valueOf(next ? currentPage + 2 : currentPage)))));
+        meta.setDisplayName(plugin.getLang().get(next ? "gui.nav-next" : "gui.nav-prev",
+                Map.of("page", String.valueOf(next ? currentPage + 2 : currentPage))));
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         stack.setItemMeta(meta);
         return stack;
@@ -322,7 +342,7 @@ public class RareItemsGUI {
     private ItemStack filler() {
         ItemStack stack = new ItemStack(NAV_FILLER);
         ItemMeta meta = stack.getItemMeta();
-        meta.displayName(Component.empty());
+        meta.setDisplayName(" ");
         stack.setItemMeta(meta);
         return stack;
     }
@@ -359,10 +379,6 @@ public class RareItemsGUI {
 
     private Color randomColor() {
         return Color.fromRGB(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
-    }
-
-    private Component c(String s) {
-        return LegacyComponentSerializer.legacySection().deserialize(color(s));
     }
 
     private String color(String s) {
