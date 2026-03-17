@@ -23,9 +23,15 @@ public class RiCommand implements CommandExecutor, TabCompleter {
         var lang = plugin.getLang();
 
         if (args.length == 0) {
-
-            if (!(sender instanceof Player player)) { send(sender, lang.get("messages.player-only", Map.of("prefix", lang.prefix()))); return true; }
-            if (!player.hasPermission("rih.use")) { send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix()))); return true; }
+            if (!(sender instanceof Player player)) {
+                send(sender, lang.get("messages.player-only", Map.of("prefix", lang.prefix())));
+                return true;
+            }
+            if (!player.hasPermission("rih.use")) {
+                send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix())));
+                return true;
+            }
+            plugin.setGuiFilter(player.getUniqueId(), null);
             plugin.getGui().open(player, 0);
             return true;
         }
@@ -39,20 +45,37 @@ public class RiCommand implements CommandExecutor, TabCompleter {
 
         switch (sub) {
             case "reset" -> {
-                if (!sender.hasPermission("rih.admin")) { send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix()))); return true; }
-                if (args.length < 2) { send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix()))); return true; }
+                if (!sender.hasPermission("rih.admin")) {
+                    send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
+                if (args.length < 2) {
+                    send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
                 handleReset(sender, args[1]);
             }
             case "reload" -> {
-                if (!sender.hasPermission("rih.admin")) { send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix()))); return true; }
+                if (!sender.hasPermission("rih.admin")) {
+                    send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
                 plugin.reloadConfig();
                 plugin.getLang().load();
                 plugin.getRareItemManager().reload();
-                send(sender, lang.get("messages.reloaded", Map.of("prefix", lang.prefix(), "count", String.valueOf(plugin.getRareItemManager().count()))));
+                send(sender, lang.get("messages.reloaded", Map.of(
+                        "prefix", lang.prefix(),
+                        "count", String.valueOf(plugin.getRareItemManager().count()))));
             }
             case "give" -> {
-                if (!sender.hasPermission("rih.admin")) { send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix()))); return true; }
-                if (args.length < 3) { send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix()))); return true; }
+                if (!sender.hasPermission("rih.admin")) {
+                    send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
+                if (args.length < 3) {
+                    send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
                 handleGive(sender, args[1], args[2]);
             }
             default -> send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix())));
@@ -93,29 +116,50 @@ public class RiCommand implements CommandExecutor, TabCompleter {
     private void handleGive(CommandSender sender, String targetName, String itemId) {
         var lang = plugin.getLang();
         Player target = Bukkit.getPlayerExact(targetName);
-        if (target == null) { send(sender, lang.get("messages.player-not-found", Map.of("prefix", lang.prefix(), "player", targetName))); return; }
+        if (target == null) {
+            send(sender, lang.get("messages.player-not-found", Map.of("prefix", lang.prefix(), "player", targetName)));
+            return;
+        }
 
         Optional<RareItem> opt = plugin.getRareItemManager().findById(itemId);
-        if (opt.isEmpty()) { send(sender, lang.get("messages.give-unknown-id", Map.of("prefix", lang.prefix(), "id", itemId))); return; }
+        if (opt.isEmpty()) {
+            send(sender, lang.get("messages.give-unknown-id", Map.of("prefix", lang.prefix(), "id", itemId)));
+            return;
+        }
 
         RareItem ri = opt.get();
         if (plugin.getPlayerDataManager().hasFound(target, ri.id())) {
-            send(sender, lang.get("messages.give-already", Map.of("prefix", lang.prefix(), "player", target.getName(), "item", ri.displayName())));
+            send(sender, lang.get("messages.give-already", Map.of(
+                    "prefix", lang.prefix(),
+                    "player", target.getName(),
+                    "item", ri.displayName())));
             return;
         }
         plugin.getPlayerDataManager().markFound(target, ri.id());
-        send(sender, lang.get("messages.give-done", Map.of("prefix", lang.prefix(), "player", target.getName(), "item", ri.displayName())));
+        send(sender, lang.get("messages.give-done", Map.of(
+                "prefix", lang.prefix(),
+                "player", target.getName(),
+                "item", ri.displayName())));
         send(target, lang.get("messages.give-notify", Map.of("prefix", lang.prefix(), "item", ri.displayName())));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-
-        if (args.length == 1) return filter(List.of("help", "reset", "reload", "give"), args[0]);
-        if (args.length == 2 && (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("give")))
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.toLowerCase().startsWith(args[1].toLowerCase())).collect(Collectors.toList());
-        if (args.length == 3 && args[0].equalsIgnoreCase("give"))
-            return plugin.getRareItemManager().getItems().stream().map(RareItem::id).filter(id -> id.startsWith(args[2].toLowerCase())).collect(Collectors.toList());
+        if (args.length == 1) {
+            return filter(List.of("help", "reset", "reload", "give"), args[0]);
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("give"))) {
+            return Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
+                    .collect(Collectors.toList());
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
+            return plugin.getRareItemManager().getItems().stream()
+                    .map(RareItem::id)
+                    .filter(id -> id.startsWith(args[2].toLowerCase(Locale.ROOT)))
+                    .collect(Collectors.toList());
+        }
         return List.of();
     }
 
@@ -124,6 +168,8 @@ public class RiCommand implements CommandExecutor, TabCompleter {
     }
 
     private List<String> filter(List<String> list, String prefix) {
-        return list.stream().filter(s -> s.startsWith(prefix.toLowerCase(Locale.ROOT))).collect(Collectors.toList());
+        return list.stream()
+                .filter(s -> s.startsWith(prefix.toLowerCase(Locale.ROOT)))
+                .collect(Collectors.toList());
     }
 }
