@@ -195,8 +195,8 @@ public class RareItemsGUI {
             return;
         }
 
-        List<String> foundCommands = plugin.getConfig().getStringList("rewards.commands.on-found");
-        List<String> completeCommands = plugin.getConfig().getStringList("rewards.commands.on-complete");
+        List<String> foundCommands = resolveRewardCommands(item, false);
+        List<String> completeCommands = resolveRewardCommands(item, true);
         ConsoleCommandSender console = Bukkit.getConsoleSender();
 
         for (String raw : foundCommands) {
@@ -207,6 +207,52 @@ public class RareItemsGUI {
                 executeConfiguredCommand(console, raw, player, item, total, timestamp);
             }
         }
+    }
+
+    private List<String> resolveRewardCommands(RareItem item, boolean onComplete) {
+        return isGlobalRewardMode()
+                ? plugin.getConfig().getStringList(onComplete ? "rewards.commands.on-complete" : "rewards.commands.on-found")
+                : readItemRewardCommands(item.id(), onComplete);
+    }
+
+    private boolean isGlobalRewardMode() {
+        String rawMode = plugin.getConfig().getString("rewards.mode", "PER_ITEM");
+        if (rawMode == null) {
+            return false;
+        }
+        String normalized = rawMode.trim().toLowerCase(Locale.ROOT);
+        return normalized.equals("global") || normalized.equals("all") || normalized.equals("alle");
+    }
+
+    private List<String> readItemRewardCommands(String itemId, boolean onComplete) {
+        String normalizedId = itemId.startsWith("custom_") ? itemId.substring("custom_".length()) : itemId;
+        String rewardKey = onComplete ? "on-complete" : "on-found";
+
+        for (String path : List.of("items", "custom-items")) {
+            for (Map<?, ?> raw : plugin.getConfig().getMapList(path)) {
+                String configuredId = String.valueOf(raw.containsKey("id") ? raw.get("id") : "").trim();
+                if (!configuredId.equalsIgnoreCase(itemId) && !configuredId.equalsIgnoreCase(normalizedId)) {
+                    continue;
+                }
+                Object rewardsObj = raw.get("rewards");
+                if (!(rewardsObj instanceof Map<?, ?> rewardsMap)) {
+                    return List.of();
+                }
+                Object commandsObj = rewardsMap.get(rewardKey);
+                if (!(commandsObj instanceof List<?> list)) {
+                    return List.of();
+                }
+                List<String> commands = new ArrayList<>();
+                for (Object entry : list) {
+                    if (entry != null) {
+                        commands.add(String.valueOf(entry));
+                    }
+                }
+                return commands;
+            }
+        }
+
+        return List.of();
     }
 
     private void executeConfiguredCommand(ConsoleCommandSender console, String rawCommand,
@@ -231,17 +277,23 @@ public class RareItemsGUI {
     private ItemStack buildPane(RareItem ri, boolean found, int total) {
         ItemStack pane = new ItemStack(found ? PANE_FOUND : PANE_UNFOUND);
         ItemMeta meta = pane.getItemMeta();
-        String name = ChatColor.stripColor(color(ri.displayName()));
+        String shownName = shouldHideDetails(ri, found)
+                ? ChatColor.stripColor(plugin.getLang().get("gui.hidden-name"))
+                : ChatColor.stripColor(color(ri.displayName()));
 
-        meta.setDisplayName(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound", Map.of("name", name)));
-        meta.setLore(List.of(
-                plugin.getLang().get("gui.rank", Map.of(
-                        "rank", String.valueOf(ri.rarity()),
-                        "total", String.valueOf(total))),
-                plugin.getLang().get(found
-                        ? (ri.occurrenceOnly() ? "gui.pane-occurred-label" : "gui.pane-found-label")
-                        : "gui.pane-click-hint")
-        ));
+        meta.setDisplayName(plugin.getLang().get(found ? "gui.pane-found" : "gui.pane-unfound", Map.of("name", shownName)));
+        if (shouldHideDetails(ri, found)) {
+            meta.setLore(List.of(plugin.getLang().get("gui.hidden-lore")));
+        } else {
+            meta.setLore(List.of(
+                    plugin.getLang().get("gui.rank", Map.of(
+                            "rank", String.valueOf(ri.rarity()),
+                            "total", String.valueOf(total))),
+                    plugin.getLang().get(found
+                            ? (ri.occurrenceOnly() ? "gui.pane-occurred-label" : "gui.pane-found-label")
+                            : "gui.pane-click-hint")
+            ));
+        }
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         pane.setItemMeta(meta);
         return pane;
@@ -253,27 +305,38 @@ public class RareItemsGUI {
         String plainName = ChatColor.stripColor(color(ri.displayName()));
 
         List<String> lore = new ArrayList<>();
-        lore.add(color("&6&l" + ri.chance()));
-        lore.add(color("&7&o" + ri.description()));
-        lore.add(plugin.getLang().get("gui.category-label", Map.of(
-                "category", plugin.getLang().get(filterKey(ri.category())))));
-
-        if (found) {
-            String ts = plugin.getPlayerDataManager().getFoundTimestamp(player, ri.id());
-            if (!ts.isEmpty()) {
-                lore.add(plugin.getLang().get("gui.found-at", Map.of("time", ts)));
-            }
-            meta.setDisplayName(color("&a&l" + plainName));
-            meta.setEnchantmentGlintOverride(true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-        } else {
-            meta.setDisplayName(color("&7" + plainName));
+        boolean hidden = shouldHideDetails(ri, found);
+        if (hidden) {
+            meta.setDisplayName(plugin.getLang().get("gui.hidden-name"));
+            lore.add(plugin.getLang().get("gui.hidden-lore"));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+        } else {
+            lore.add(color("&6&l" + ri.chance()));
+            lore.add(color("&7&o" + ri.description()));
+            lore.add(plugin.getLang().get("gui.category-label", Map.of(
+                    "category", plugin.getLang().get(filterKey(ri.category())))));
+
+            if (found) {
+                String ts = plugin.getPlayerDataManager().getFoundTimestamp(player, ri.id());
+                if (!ts.isEmpty()) {
+                    lore.add(plugin.getLang().get("gui.found-at", Map.of("time", ts)));
+                }
+                meta.setDisplayName(color("&a&l" + plainName));
+                meta.setEnchantmentGlintOverride(true);
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+            } else {
+                meta.setDisplayName(color("&7" + plainName));
+                meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
+            }
         }
 
         meta.setLore(lore);
         stack.setItemMeta(meta);
         return stack;
+    }
+
+    private boolean shouldHideDetails(RareItem item, boolean found) {
+        return !found && plugin.getConfig().getBoolean("spoiler-mode.enabled", false);
     }
 
     private ItemStack filterButton(RareItemCategory activeFilter) {
