@@ -1,5 +1,5 @@
 name: RareItemsHunter
-version: '1.3.1'
+version: '1.3.2'
 main: dev.zyvera.rareitemshunter.RareItemsHunter
 api-version: '1.21'
 description: Track and collect rare Minecraft items.
@@ -10,7 +10,7 @@ folia-supported: true
 commands:
   ri:
     description: RareItemsHunter main command.
-    usage: /ri [help|reset <player>|reload|give <player> <id>]
+    usage: /ri [help|reset <player>|reload|give <player> <id>|rewardmode <peritem|global>]
     aliases: [ rih, rareitems ]
     permission: rih.use
 
