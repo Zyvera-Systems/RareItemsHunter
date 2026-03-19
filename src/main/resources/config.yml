@@ -19,18 +19,34 @@ announce-find: true
 # ─────────────────────────────────────────
 #  Optional reward commands
 #  Disabled by default.
+#  mode: PER_ITEM = rewards from the matching item entry
+#        GLOBAL   = rewards.commands for every found item
 #  Placeholders: {player}, {item}, {id}, {rank}, {total}, {time}
 # ─────────────────────────────────────────
 rewards:
   enabled: false
+  mode: "PER_ITEM"
   commands:
     on-found: []
     on-complete: []
 
 # ─────────────────────────────────────────
+#  Hidden / spoiler mode
+#  If enabled, unfound entries only show ??? until they were found.
+# ─────────────────────────────────────────
+spoiler-mode:
+  enabled: false
+
+# ─────────────────────────────────────────
 #  Built-in items (editable)
 #  You can change, remove or reorder these entries directly here.
 #  category: item | mob | structure | individuell
+#  Optional per-item rewards:
+#  rewards:
+#    on-found:
+#      - "give {player} diamond 1"
+#    on-complete:
+#      - "say {player} completed the hunt with {item}"
 # ─────────────────────────────────────────
 items:
   - id: "zombie_villager_chicken_diamond"
