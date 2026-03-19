@@ -68,6 +68,8 @@ public class RiCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 plugin.reloadConfig();
+                plugin.getConfig().options().copyDefaults(true);
+                plugin.saveConfig();
                 plugin.getLang().load();
                 plugin.getRareItemManager().reload();
                 send(sender, lang.get("messages.reloaded", Map.of(
@@ -85,6 +87,17 @@ public class RiCommand implements CommandExecutor, TabCompleter {
                 }
                 handleGive(sender, args[1], args[2]);
             }
+            case "rewardmode" -> {
+                if (!sender.hasPermission("rih.admin")) {
+                    send(sender, lang.get("messages.no-permission", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
+                if (args.length < 2) {
+                    send(sender, lang.get("messages.rewardmode-usage", Map.of("prefix", lang.prefix())));
+                    return true;
+                }
+                handleRewardMode(sender, args[1]);
+            }
             default -> send(sender, lang.get("messages.unknown-command", Map.of("prefix", lang.prefix())));
         }
         return true;
@@ -97,6 +110,7 @@ public class RiCommand implements CommandExecutor, TabCompleter {
         send(sender, lang.get("messages.help-line2"));
         send(sender, lang.get("messages.help-line3"));
         send(sender, lang.get("messages.help-line4"));
+        send(sender, lang.get("messages.help-line5"));
         send(sender, lang.get("messages.help-header"));
         send(sender, lang.get("messages.help-footer"));
     }
@@ -154,16 +168,49 @@ public class RiCommand implements CommandExecutor, TabCompleter {
                 send(target, lang.get("messages.give-notify", Map.of("prefix", lang.prefix(), "item", ri.displayName()))));
     }
 
+    private void handleRewardMode(CommandSender sender, String rawMode) {
+        var lang = plugin.getLang();
+        String normalized = normalizeRewardMode(rawMode);
+        if (normalized == null) {
+            send(sender, lang.get("messages.rewardmode-usage", Map.of("prefix", lang.prefix())));
+            return;
+        }
+
+        plugin.getConfig().set("rewards.mode", normalized);
+        plugin.saveConfig();
+
+        String modeLabel = normalized.equals("GLOBAL")
+                ? lang.get("messages.rewardmode-global")
+                : lang.get("messages.rewardmode-peritem");
+        send(sender, lang.get("messages.rewardmode-set", Map.of(
+                "prefix", lang.prefix(),
+                "mode", modeLabel)));
+    }
+
+    private String normalizeRewardMode(String rawMode) {
+        if (rawMode == null) {
+            return null;
+        }
+        return switch (rawMode.trim().toLowerCase(Locale.ROOT)) {
+            case "global", "all", "alle" -> "GLOBAL";
+            case "peritem", "item", "proitem", "einzeln" -> "PER_ITEM";
+            default -> null;
+        };
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(List.of("help", "reset", "reload", "give"), args[0]);
+            return filter(List.of("help", "reset", "reload", "give", "rewardmode"), args[0]);
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("reset") || args[0].equalsIgnoreCase("give"))) {
             return Bukkit.getOnlinePlayers().stream()
                     .map(Player::getName)
                     .filter(n -> n.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
                     .collect(Collectors.toList());
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("rewardmode")) {
+            return filter(List.of("peritem", "global"), args[1]);
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             return plugin.getRareItemManager().getItems().stream()
