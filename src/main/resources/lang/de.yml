@@ -23,6 +23,8 @@ gui:
   filter-cycle: "&8Klick: &7Weiter zu {next}"
   found-at: "&8Gefunden: &7{time}"
   category-label: "&8Kategorie: &7{category}"
+  hidden-name: "&8???"
+  hidden-lore: "&8Unbekannt – zuerst finden"
 
 messages:
   already-found: "{prefix}&7{item} &7wurde bereits bestätigt."
@@ -48,4 +50,9 @@ messages:
   help-line2: "  &6/ri reset &e<Spieler>"
   help-line3: "  &6/ri reload"
   help-line4: "  &6/ri give &e<Spieler> &b<ID>"
+  help-line5: "  &6/ri rewardmode &e<peritem|global>"
+  rewardmode-usage: "{prefix}&cNutze &f/ri rewardmode <peritem|global>&c."
+  rewardmode-set: "{prefix}&aBelohnungsmodus gesetzt auf &e{mode}&a."
+  rewardmode-peritem: "&bpro Item"
+  rewardmode-global: "&eglobal"
   help-footer: "&8Made by &6Zyvera-Systems &8& &6Thomas U."
