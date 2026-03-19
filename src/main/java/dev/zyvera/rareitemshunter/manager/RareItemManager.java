@@ -10,10 +10,12 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class RareItemManager {
 
@@ -201,9 +203,11 @@ public class RareItemManager {
         ensureEditableDefaultItems();
         migrateBuiltInCategories();
 
+        ValidationReport report = validateConfiguredItems();
+        Set<String> seenIds = new HashSet<>();
         List<RareItem> loadedItems = new ArrayList<>();
-        loadConfiguredItems(loadedItems, DEFAULT_ITEMS_PATH, false, RareItemCategory.ITEM);
-        loadConfiguredItems(loadedItems, CUSTOM_ITEMS_PATH, true, RareItemCategory.CUSTOM);
+        loadConfiguredItems(loadedItems, DEFAULT_ITEMS_PATH, false, RareItemCategory.ITEM, seenIds);
+        loadConfiguredItems(loadedItems, CUSTOM_ITEMS_PATH, true, RareItemCategory.CUSTOM, seenIds);
 
         loadedItems.sort(Comparator.comparingInt(RareItem::rarity));
 
@@ -225,6 +229,9 @@ public class RareItemManager {
         this.itemsById = Map.copyOf(idIndex);
 
         plugin.getLogger().info("Loaded " + immutableItems.size() + " rare items.");
+        if (report.hasFindings()) {
+            plugin.getLogger().info(report.summary());
+        }
     }
 
     private void migrateBuiltInCategories() {
@@ -250,7 +257,8 @@ public class RareItemManager {
             String expected = expectedCategories.get(id);
             if (expected != null) {
                 Object current = entry.get("category");
-                String normalizedCurrent = toConfigCategory(RareItemCategory.fromConfig(current == null ? null : String.valueOf(current)));
+                String normalizedCurrent = toConfigCategory(resolveConfiguredCategory(
+                        current == null ? null : String.valueOf(current), RareItemCategory.ITEM));
                 if (!expected.equalsIgnoreCase(normalizedCurrent)) {
                     entry.put("category", expected);
                     changed = true;
@@ -293,7 +301,95 @@ public class RareItemManager {
         return defaults;
     }
 
-    private void loadConfiguredItems(List<RareItem> target, String path, boolean prefixCustomId, RareItemCategory defaultCategory) {
+    private ValidationReport validateConfiguredItems() {
+        ValidationReport report = new ValidationReport();
+        Set<String> seenIds = new HashSet<>();
+        boolean changed = false;
+        changed |= validatePathEntries(DEFAULT_ITEMS_PATH, false, RareItemCategory.ITEM, seenIds, report);
+        changed |= validatePathEntries(CUSTOM_ITEMS_PATH, true, RareItemCategory.CUSTOM, seenIds, report);
+        if (changed) {
+            plugin.saveConfig();
+        }
+        return report;
+    }
+
+    private boolean validatePathEntries(String path, boolean prefixCustomId, RareItemCategory defaultCategory,
+                                        Set<String> seenIds, ValidationReport report) {
+        List<Map<?, ?>> configured = plugin.getConfig().getMapList(path);
+        if (configured.isEmpty()) {
+            return false;
+        }
+
+        boolean changed = false;
+        List<Map<String, Object>> migrated = new ArrayList<>();
+
+        for (Map<?, ?> raw : configured) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> mapEntry : raw.entrySet()) {
+                entry.put(String.valueOf(mapEntry.getKey()), mapEntry.getValue());
+            }
+
+            String baseId = String.valueOf(entry.getOrDefault("id", "")).trim();
+            if (baseId.isEmpty()) {
+                baseId = "item_" + (migrated.size() + 1);
+                entry.put("id", baseId);
+                changed = true;
+            }
+            String normalizedId = prefixCustomId && !baseId.startsWith("custom_") ? "custom_" + baseId : baseId;
+            if (!seenIds.add(normalizedId)) {
+                report.duplicateIds++;
+                plugin.getLogger().warning("Duplicate rare item id '" + normalizedId + "' in " + path + " – later entry will be skipped.");
+            }
+
+            String rawMaterial = String.valueOf(entry.getOrDefault("material", "STONE")).trim();
+            if (rawMaterial.isEmpty()) {
+                rawMaterial = "STONE";
+                entry.put("material", rawMaterial);
+                changed = true;
+            }
+            try {
+                Material.valueOf(rawMaterial.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                report.invalidMaterials++;
+                plugin.getLogger().warning("Unknown material '" + rawMaterial + "' in " + path + " for id '" + baseId + "'.");
+            }
+
+            Object categoryValue = entry.get("category");
+            if (categoryValue == null || String.valueOf(categoryValue).isBlank() || !isKnownCategoryValue(String.valueOf(categoryValue))) {
+                entry.put("category", toConfigCategory(defaultCategory));
+                report.missingCategories++;
+                changed = true;
+            }
+
+            for (String textKey : List.of("name", "chance", "description")) {
+                Object value = entry.get(textKey);
+                if (value == null) {
+                    continue;
+                }
+                String original = String.valueOf(value);
+                String normalized = normalizeLegacyColorCodes(original);
+                if (!normalized.equals(original)) {
+                    entry.put(textKey, normalized);
+                    report.fixedColorCodes++;
+                    changed = true;
+                }
+                if (containsSuspiciousAmpersand(normalized)) {
+                    report.suspiciousColorCodes++;
+                    plugin.getLogger().warning("Suspicious color code sequence in " + path + " for id '" + baseId + "' field '" + textKey + "'.");
+                }
+            }
+
+            migrated.add(entry);
+        }
+
+        if (changed) {
+            plugin.getConfig().set(path, migrated);
+        }
+        return changed;
+    }
+
+    private void loadConfiguredItems(List<RareItem> target, String path, boolean prefixCustomId,
+                                     RareItemCategory defaultCategory, Set<String> seenIds) {
         int fallback = maxRarity(target) + 1;
         for (Map<?, ?> raw : plugin.getConfig().getMapList(path)) {
             Object idValue = raw.containsKey("id") ? raw.get("id") : "item_" + fallback;
@@ -303,21 +399,25 @@ public class RareItemManager {
             }
 
             String id = prefixCustomId && !baseId.startsWith("custom_") ? "custom_" + baseId : baseId;
+            if (!seenIds.add(id)) {
+                continue;
+            }
+
             Object materialValue = raw.containsKey("material") ? raw.get("material") : "STONE";
             String matName = String.valueOf(materialValue).trim().toUpperCase(Locale.ROOT);
             Object nameValue = raw.containsKey("name") ? raw.get("name") : "&7Unknown Item";
-            String name = String.valueOf(nameValue);
+            String name = normalizeLegacyColorCodes(String.valueOf(nameValue));
             Object chanceValue = raw.containsKey("chance") ? raw.get("chance") : "?";
-            String chance = String.valueOf(chanceValue);
+            String chance = normalizeLegacyColorCodes(String.valueOf(chanceValue));
             Object descriptionValue = raw.containsKey("description") ? raw.get("description") : "";
-            String desc = String.valueOf(descriptionValue);
+            String desc = normalizeLegacyColorCodes(String.valueOf(descriptionValue));
             Object occurrenceValue = raw.containsKey("occurrence-only") ? raw.get("occurrence-only") : "false";
             boolean occurrenceOnly = Boolean.parseBoolean(String.valueOf(occurrenceValue));
 
             String rawCategory = raw.containsKey("category")
                     ? String.valueOf(raw.get("category"))
                     : toConfigCategory(defaultCategory);
-            RareItemCategory category = RareItemCategory.fromConfig(rawCategory);
+            RareItemCategory category = resolveConfiguredCategory(rawCategory, defaultCategory);
 
             int rarity = parseRarity(raw.get("rarity"), fallback);
             if (!raw.containsKey("rarity")) {
@@ -326,8 +426,8 @@ public class RareItemManager {
 
             try {
                 target.add(new RareItem(id, Material.valueOf(matName), name, rarity, chance, desc, occurrenceOnly, category));
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("Unknown material '" + matName + "' in " + path + " – skipped.");
+            } catch (IllegalArgumentException ignored) {
+                // already reported by the validator
             }
         }
     }
@@ -342,6 +442,62 @@ public class RareItemManager {
             plugin.getLogger().warning("Invalid rarity '" + rawValue + "' in config.yml – using " + fallback + " instead.");
             return fallback;
         }
+    }
+
+    private RareItemCategory resolveConfiguredCategory(String raw, RareItemCategory defaultCategory) {
+        if (raw == null || raw.isBlank()) {
+            return defaultCategory;
+        }
+        return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "item", "items" -> RareItemCategory.ITEM;
+            case "mob", "mobs", "monster", "monsters" -> RareItemCategory.MOB;
+            case "structure", "structures", "struktur", "strukturen" -> RareItemCategory.STRUCTURE;
+            case "custom", "individuell", "individual", "individuals" -> RareItemCategory.CUSTOM;
+            default -> defaultCategory;
+        };
+    }
+
+    private boolean isKnownCategoryValue(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        String lowered = raw.trim().toLowerCase(Locale.ROOT);
+        return lowered.equals("item") || lowered.equals("items")
+                || lowered.equals("mob") || lowered.equals("mobs")
+                || lowered.equals("monster") || lowered.equals("monsters")
+                || lowered.equals("structure") || lowered.equals("structures")
+                || lowered.equals("struktur") || lowered.equals("strukturen")
+                || lowered.equals("custom") || lowered.equals("individuell")
+                || lowered.equals("individual") || lowered.equals("individuals");
+    }
+
+    private String normalizeLegacyColorCodes(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        return value
+                .replace("Â§", "&")
+                .replace("§", "&");
+    }
+
+    private boolean containsSuspiciousAmpersand(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        String allowed = "0123456789abcdefklmnorx";
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) != '&') {
+                continue;
+            }
+            if (i + 1 >= value.length()) {
+                return true;
+            }
+            char next = Character.toLowerCase(value.charAt(i + 1));
+            if (allowed.indexOf(next) == -1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String toConfigCategory(RareItemCategory category) {
@@ -374,5 +530,27 @@ public class RareItemManager {
 
     private int maxRarity(List<RareItem> source) {
         return source.stream().mapToInt(RareItem::rarity).max().orElse(0);
+    }
+
+    private static final class ValidationReport {
+        private int missingCategories;
+        private int fixedColorCodes;
+        private int suspiciousColorCodes;
+        private int invalidMaterials;
+        private int duplicateIds;
+
+        private boolean hasFindings() {
+            return missingCategories > 0 || fixedColorCodes > 0 || suspiciousColorCodes > 0
+                    || invalidMaterials > 0 || duplicateIds > 0;
+        }
+
+        private String summary() {
+            return "Config validation: "
+                    + missingCategories + " category fixes, "
+                    + fixedColorCodes + " legacy color-code fixes, "
+                    + suspiciousColorCodes + " suspicious color-code warnings, "
+                    + invalidMaterials + " invalid materials, "
+                    + duplicateIds + " duplicate ids.";
+        }
     }
 }
