@@ -1,8 +1,8 @@
 name: RareItemsHunter
-version: '1.3.2'
+version: '1.3.3'
 main: dev.zyvera.rareitemshunter.RareItemsHunter
 api-version: '1.21'
-description: Track and collect rare Minecraft items.
+description: Track and collect rare Minecraft items with stats, YAML/MySQL storage and configurable rewards.
 authors: [ Zyvera-Systems, Thomas U. ]
 website: https://github.com/ThomasUgh/RareItemsHunter
 folia-supported: true
@@ -10,14 +10,39 @@ folia-supported: true
 commands:
   ri:
     description: RareItemsHunter main command.
-    usage: /ri [help|reset <player>|reload|give <player> <id>|rewardmode <peritem|global>]
+    usage: /ri [help|reset [player]|reload|give <player> <id>|rewardmode <peritem|global>|stats [player]]
     aliases: [ rih, rareitems ]
-    permission: rih.use
 
 permissions:
-  rih.use:
-    description: Open the rare items GUI.
+  rih.stats.self:
+    description: View your own RareItemsHunter stats.
     default: true
-  rih.admin:
-    description: Admin commands (reset, reload, give).
+  rih.stats.others:
+    description: View stats of other players.
     default: op
+  rih.reset.self:
+    description: Reset your own RareItemsHunter progress.
+    default: false
+  rih.reset.others:
+    description: Reset progress of other players.
+    default: op
+  rih.reload:
+    description: Reload RareItemsHunter config, language files and storage backend.
+    default: op
+  rih.give:
+    description: Mark entries as found for other players.
+    default: op
+  rih.rewardmode:
+    description: Change the configured reward mode.
+    default: op
+  rih.admin:
+    description: Grants all RareItemsHunter admin permissions.
+    default: op
+    children:
+      rih.reload: true
+      rih.give: true
+      rih.rewardmode: true
+      rih.stats.self: true
+      rih.stats.others: true
+      rih.reset.others: true
+      rih.reset.self: true
