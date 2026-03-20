@@ -12,6 +12,24 @@ firework-power: 1
 # GUI title (supports & color codes)
 gui-title: "&8» &6&lSeltene Items &8«"
 
+# ─────────────────────────────────────────
+#  Player data storage
+#  type: YAML | MYSQL
+#  YAML is the default and stores one file per player.
+#  MYSQL stores all player progress in a database table.
+#  Switching the type and using /ri reload migrates existing data.
+# ─────────────────────────────────────────
+storage:
+  type: "YAML"
+  mysql:
+    host: "127.0.0.1"
+    port: 3306
+    database: "rareitemshunter"
+    username: "root"
+    password: "change-me"
+    table: "rih_playerdata"
+    parameters: "?useSSL=false&useUnicode=true&characterEncoding=utf8"
+
 # Global chat announcement when a player finds an item
 # Placeholders: {player}, {item}, {rank}, {total}
 announce-find: true
