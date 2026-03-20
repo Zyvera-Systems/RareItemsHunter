@@ -66,6 +66,7 @@ public final class RareItemsHunter extends JavaPlugin {
                 : "Bukkit scheduler fallback")
                 + ", entity scheduler "
                 + (schedulerBridge.supportsEntityScheduler() ? "available" : "fallback") + ".");
+        getLogger().info("Player data backend: " + playerDataManager.currentStorageName());
     }
 
     @Override
